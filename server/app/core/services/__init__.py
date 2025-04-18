@@ -1,0 +1,1 @@
+from .qr_service import process_qr_scan

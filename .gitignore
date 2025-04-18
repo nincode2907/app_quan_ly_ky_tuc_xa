@@ -1,0 +1,7 @@
+/server/venv
+/server/app/.env
+/server/app/db.sqlite3
+__pycache__
+
+/server/app/core/savemi
+/server/app/core/migrations/__pycache__

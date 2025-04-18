@@ -1,0 +1,20 @@
+/* static/admin/css/custom.css */
+:root {
+    --primary: #3498db;
+    --danger: #e74c3c;
+}
+
+/* Header */
+#header {
+    background: var(--primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Tables */
+.occupancy-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.occupancy-table tr.full {
+    background-color: #ffeeee;
+}

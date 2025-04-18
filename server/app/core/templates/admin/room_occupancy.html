@@ -1,0 +1,53 @@
+{% comment %} {% extends "admin/base_site.html" %} {% endcomment %}
+
+{% block content %}
+<div class="room-occupancy">
+    <h2>Thống kê sử dụng phòng</h2>
+    
+    <table class="occupancy-table">
+        <thead>
+            <tr>
+                <th>Phòng</th>
+                <th>Tòa nhà</th>
+                <th>Loại phòng</th>
+                <th>Số người hiện tại</th>
+                <th>Sức chứa tối đa</th>
+                <th>Tỉ lệ sử dụng</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for room in occupancy %}
+            <tr>
+                <td>{{ room.name }}</td>
+                <td>{{ room.building }}</td>
+                <td>{{ room.room_type }}</td>
+                <td>{{ room.current_occupancy }}</td>
+                <td>{{ room.room_type.capacity }}</td>
+                <td>
+                    {% widthratio room.current_occupancy room.room_type.capacity 100 %}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<style>
+.occupancy-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+.occupancy-table th, .occupancy-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+.occupancy-table th {
+    background-color: #f2f2f2;
+}
+.occupancy-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+</style>
+{% endblock %}

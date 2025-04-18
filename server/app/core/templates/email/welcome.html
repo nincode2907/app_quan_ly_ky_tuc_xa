@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thông Tin Tài Khoản Ký Túc Xá</title>
+</head>
+<body>
+    <h2>Chào mừng bạn đến với hệ thống quản lý ký túc xá!</h2>
+    <p>Chào <strong>{{ full_name }}</strong>,</p>
+    <p>Tài khoản của bạn đã được tạo thành công. Dưới đây là thông tin đăng nhập:</p>
+    <ul>
+        <li><strong>Email:</strong> {{ email }}</li>
+        <li><strong>Mật khẩu:</strong> {{ password }}</li>
+    </ul>
+    <p><strong>Hướng dẫn:</strong></p>
+    <ol>
+        <li>Tải ứng dụng Ký Túc Xá Sinh Viên trên điện thoại của bạn.</li>
+        <li>Đăng nhập bằng email và mật khẩu trên.</li>
+        <li>Lần đầu đăng nhập, bạn sẽ được yêu cầu:
+            <ul>
+                <li>Đổi mật khẩu để bảo mật tài khoản.</li>
+                <li>Cập nhật thông tin cá nhân (giới tính, quê quán, ngày sinh, mã sinh viên).</li>
+            </ul>
+        </li>
+        <li>Sau đó, bạn có thể sử dụng ứng dụng để xem thông tin phòng, hợp đồng, hóa đơn, v.v.</li>
+    </ol>
+    <p>Nếu có thắc mắc, vui lòng liên hệ quản trị viên qua email: {{ admin_email }}.</p>
+    <p>Trân trọng,<br>Hệ thống Ký Túc Xá Sinh Viên</p>
+</body>
+</html>

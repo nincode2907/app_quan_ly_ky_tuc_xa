@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phê Duyệt Yêu Cầu Phòng Ký Túc Xá</title>
+</head>
+<body>
+    <h2>Chào {{ full_name }},</h2>
+    <p>Yêu cầu phòng của bạn đã được phê duyệt. Thông tin phòng mới:</p>
+    <ul>
+        <li><strong>Phòng:</strong> {{ room.number }} - {{ room.building.name }}</li>
+        <li><strong>Khu vực:</strong> {{ room.building.area.name }}</li>
+    </ul>
+    <p>Vui lòng liên hệ quản trị viên qua email {{ admin_email }} nếu có thắc mắc.</p>
+    <p>Trân trọng,<br>Hệ thống Ký Túc Xá Sinh Viên</p>
+</body>
+</html>

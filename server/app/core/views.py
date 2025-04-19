@@ -1,10 +1,10 @@
 from django.shortcuts import render
 from rest_framework import viewsets, permissions, generics, status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill
+from .models import User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services import process_qr_scan
@@ -24,6 +24,16 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         if self.request.user.is_admin:
             return Student.objects.all().select_related('user', 'faculty', 'room__room_type', 'room__building__area').order_by('id')
         return Student.objects.filter(user=self.request.user).select_related('user')
+    
+    @action(detail=False, methods=['get'], url_path='me')
+    def get_student_info(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = serializers.StudentSerializer(student)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['POST'], url_path='update-profile')
     def update_profile(self, request):
@@ -71,6 +81,59 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
                 "student_id": student.student_id,
             }
         }, status=status.HTTP_200_OK)
+        
+    @action(detail=False, methods=['POST'], url_path='room-request')
+    def room_request(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if student.is_blocked:
+            return Response({"error": "Bạn đã bị khóa tài khoản. Vui lòng liên hệ với quản trị viên."}, status=status.HTTP_403_FORBIDDEN)
+        
+        requested_room_id = request.data.get('requested_room_id')
+        reason = request.data.get('reason')
+        try:
+            requested_room = Room.objects.get(id=requested_room_id)
+        except Room.DoesNotExist:
+            return Response({"error": "Phòng yêu cầu không tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if requested_room.building.gender != student.gender:
+            return Response({"error": "Phòng yêu cầu không phù hợp với giới tính của bạn."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if requested_room.available_slots <= 0:
+            return Response({"error": "Phòng yêu cầu đã hết giường trống.."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if RoomRequest.objects.filter(student=student, status='PENDING').exists():
+            return Response({"error": "Bạn đã có một yêu cầu đang chờ xử lý."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        is_change_request = student.room is not None
+        if is_change_request and not reason:
+            return Response({"error": "Lý do đổi phòng là bắt buộc."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        RoomRequest.objects.create(
+            student=student,
+            current_room=student.room,
+            requested_room=requested_room,
+            reason=reason if is_change_request else ''
+        )
+        
+        return Response({"message": "Yêu cầu đã được gửi."}, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['POST'], url_path='room-requests')
+    def room_requests(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if student.is_blocked:
+            return Response({"error": "Bạn đã bị khóa tài khoản. Vui lòng liên hệ với quản trị viên."}, status=status.HTTP_403_FORBIDDEN)
+        
+        requests = RoomRequest.objects.filter(student=student).select_related('current_room', 'requested_room')
+        serializer = serializers.RoomRequestSerializer(requests, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
 class AreaViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Area.objects.none()
@@ -108,8 +171,37 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Room.objects.all().select_related('building__area', 'room_type').order_by('id')
+        if self.request.user.is_admin:
+            return Room.objects.all().select_related('building__area', 'room_type').order_by('id')
+        
+        try:
+            student = self.request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Room.objects.filter(
+            building__gender=student.gender,
+            available_slots__gt=0
+        ).select_related('building__area', 'room_type').order_by('room_type__capacity', 'available_slots')
+        
+class RoomRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+    queryset = RoomRequest.objects.none()
+    serializer_class = serializers.RoomRequestSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
     
+    def get_queryset(self):
+        if self.request.user.is_admin:
+            return RoomRequest.objects.all().select_related(
+                'student__user',
+                'student__faculty',
+                'student__room__room_type',
+                'student__room__building__area',
+                'current_room__room_type',
+                'current_room__building__area'
+                'requested_room__room_type',
+                'requested_room__building__area').order_by('id')
+        return RoomRequest.objects.filter(student__user=self.request.user).select_related('student__user')
+        
 class ContractViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Contract.objects.none()
     serializer_class = serializers.ContractSerializer

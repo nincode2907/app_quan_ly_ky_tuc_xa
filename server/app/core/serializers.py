@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill
+from .models import User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill, RoomRequest
 
 class FacultySerializer(serializers.ModelSerializer):
     class Meta:
@@ -30,6 +30,15 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'number', 'building', 'room_type', 'floor', 'available_slots']
+        
+class RoomRequestSerializer(serializers.ModelSerializer):
+    student = serializers.StringRelatedField()
+    current_room = serializers.StringRelatedField()
+    requested_room = serializers.StringRelatedField()
+
+    class Meta:
+        model = RoomRequest
+        fields = ['id', 'student', 'current_room', 'requested_room', 'reason', 'status', 'created_at', 'updated_at']
         
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

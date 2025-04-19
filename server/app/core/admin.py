@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.contrib import admin
 from django.urls import path
 from django.template.response import TemplateResponse
@@ -7,7 +8,7 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from django.db.models import Count, Sum
-from .models import User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area
+from .models import User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -195,6 +196,74 @@ class RoomAdmin(admin.ModelAdmin):
     def price(self, obj):
         return f"{obj.room_type.price:,} VNĐ/month"
     price.short_description = "Price"
+    
+@admin.register(RoomRequest, site=admin_site)
+class RoomRequestAdmin(admin.ModelAdmin):
+    list_display = ('student', 'current_room', 'requested_room', 'reason', 'status', 'created_at')
+    list_filter = ('status', 'created_at', 'reason')
+    search_fields = ('student__full_name', 'student__student_id', 'reason')
+    actions = ['approve_request', 'reject_request']
+
+    def approve_request(self, request, queryset):
+        for room_request in queryset:
+            if room_request.status != 'PENDING':
+                self.message_user(request, f"Yêu cầu của {room_request.student.full_name} đã được xử lý.")
+                continue
+            if room_request.requested_room.available_slots <= 0:
+                self.message_user(request, f"Phòng {room_request.requested_room} đã hết giường trống.")
+                continue
+            if room_request.student.is_blocked:
+                self.message_user(request, f"Sinh viên {room_request.student.full_name} đã bị khóa.")
+                continue
+
+            # Kết thúc hợp đồng cũ (nếu có)
+            old_contract = Contract.objects.filter(student=room_request.student, end_date__isnull=True).first()
+            if old_contract:
+                old_contract.end_date = timezone.now()
+                old_contract.save()
+                old_room = old_contract.room
+                old_room.available_slots += 1
+                old_room.save()
+
+            # Tạo hợp đồng mới
+            Contract.objects.create(
+                student=room_request.student,
+                room=room_request.requested_room,
+                start_date=timezone.now(),
+                end_date=timezone.now() + timezone.timedelta(days=180)
+            )
+
+            room_request.status = 'APPROVED'
+            room_request.save()
+
+            # Gửi email thông báo
+            subject = 'Thông Báo Phê Duyệt Yêu Cầu Phòng'
+            html_message = render_to_string('email/room_request_approved.html', {
+                'full_name': room_request.student.full_name,
+                'room': room_request.requested_room,
+                'admin_email': settings.DEFAULT_FROM_EMAIL,
+            })
+            send_mail(
+                subject,
+                message='',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[room_request.student.user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+
+            self.message_user(request, f"Đã duyệt yêu cầu của {room_request.student.full_name}.")
+    approve_request.short_description = "Duyệt yêu cầu phòng"
+
+    def reject_request(self, request, queryset):
+        for room_request in queryset:
+            if room_request.status != 'PENDING':
+                self.message_user(request, f"Yêu cầu của {room_request.student.full_name} đã được xử lý.")
+                continue
+            room_request.status = 'REJECTED'
+            room_request.save()
+            self.message_user(request, f"Đã từ chối yêu cầu của {room_request.student.full_name}.")
+    reject_request.short_description = "Từ chối yêu cầu phòng"
     
 @admin.register(Violation, site=admin_site)
 class ViolationAdmin(admin.ModelAdmin):

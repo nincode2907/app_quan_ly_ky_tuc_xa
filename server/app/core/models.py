@@ -9,6 +9,8 @@ import qrcode
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.core.files import File
+from django.core.exceptions import ValidationError
+from ckeditor_uploader.fields import RichTextUploadingField
 # from .utils import validate_image_extension
 
 MAX_VIOLATIONS = settings.MAX_VIOLATIONS
@@ -300,4 +302,62 @@ class Bill(models.Model):
     
     def __str__(self):
         return f"Bill {self.id} - {self.student}"
+
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('NORMAL', 'Bình thường'),
+        ('URGENT', 'Khẩn cấp'),
+    )
     
+    TARGET_CHOICES = (
+        ('ALL', 'Tất cả sinh viên'),
+        ('AREA', 'Theo khu vực'),
+        ('BUILDING', 'Theo tòa nhà'),
+        ('ROOM', 'Theo phòng'),
+        ('INDIVIDUAL', 'Cá nhân'),
+    )
+    
+    title = models.CharField(max_length=255)
+    content = RichTextUploadingField()
+    notification_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='NORMAL')
+    target_type = models.CharField(max_length=10, choices=TARGET_CHOICES, default='ALL')
+    target_area = models.ForeignKey(Area, on_delete=models.CASCADE, blank=True, null=True)
+    target_building = models.ForeignKey(Building, on_delete=models.CASCADE, blank=True, null=True)
+    target_room = models.ForeignKey(Room, on_delete=models.CASCADE, blank=True, null=True)
+    target_student = models.ForeignKey(Student, on_delete=models.CASCADE, blank=True, null=True)
+    attachment = CloudinaryField('file', blank=True, null=True, resource_type='raw')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def clean(self):
+        """Kiểm tra trường bắt buộc dựa trên target_type"""
+        if self.target_type == 'AREA' and not self.target_area:
+            raise ValidationError({'target_area': 'Khu vực là bắt buộc khi chọn gửi theo khu vực.'})
+        elif self.target_type == 'BUILDING' and not self.target_building:
+            raise ValidationError({'target_building': 'Tòa nhà là bắt buộc khi chọn gửi theo tòa nhà.'})
+        elif self.target_type == 'ROOM' and not self.target_room:
+            raise ValidationError({'target_room': 'Phòng là bắt buộc khi chọn gửi theo phòng.'})
+        elif self.target_type == 'INDIVIDUAL' and not self.target_student:
+            raise ValidationError({'target_student': 'Sinh viên là bắt buộc khi chọn gửi cá nhân.'})
+        elif self.target_type == 'ALL':
+            pass
+        else:
+            if self.target_type != 'AREA' and self.target_area:
+                self.target_area = None
+            if self.target_type != 'BUILDING' and self.target_building:
+                self.target_building = None
+            if self.target_type != 'ROOM' and self.target_room:
+                self.target_room = None
+            if self.target_type != 'INDIVIDUAL' and self.target_student:
+                self.target_student = None
+                
+    def __str__(self):
+        return f"{self.title} - {self.target_type} - {self.created_at}"
+    
+class UserNotification(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='notifications')
+    notification = models.ForeignKey(Notification, on_delete=models.CASCADE, related_name='user_notifications')
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.student.user.email} - {self.notification.title} - {self.is_read}"

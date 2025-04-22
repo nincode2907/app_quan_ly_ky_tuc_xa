@@ -18,11 +18,13 @@ from django.contrib import admin
 from django.conf import settings
 from django.urls import path, include
 from core.admin import admin_site
+from django.conf.urls.static import static
 import debug_toolbar
 
 urlpatterns = [
     path('jet/', include('jet.urls')),  # UI (bắt buộc)
     path('jet/dashboard/', include('jet.dashboard.urls', namespace='jet-dashboard')),
+    path('ckeditor/', include('ckeditor_uploader.urls')),
     path('o/', include('oauth2_provider.urls',namespace='oauth2_provider')),
     path('api/', include('core.urls')),
     path('admin/', admin_site.urls),
@@ -32,3 +34,4 @@ if settings.DEBUG:
     urlpatterns += [
         path('__debug__/', include(debug_toolbar.urls)),
     ]
+    

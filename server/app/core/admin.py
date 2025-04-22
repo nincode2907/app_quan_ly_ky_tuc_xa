@@ -8,11 +8,13 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm
 from django.db.models import Count, Sum
-from .models import User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest
+from .models import User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
+import requests
+import os
 
 # Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
@@ -319,3 +321,63 @@ class AreaAdmin(admin.ModelAdmin):
     def building_count(self, obj):
         return obj.buildings.count()
     building_count.short_description = "Số Tòa Nhà"
+
+
+@admin.register(Notification, site=admin_site)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('title', 'notification_type', 'target_type', 'created_at')
+    list_filter = ('notification_type', 'target_type', 'created_at')
+    
+    def send_notification(self, request, notification):
+        if notification.target_type == 'INDIVIDUAL' and notification.target_student:
+            students = Student.objects.filter(id=notification.target_student.id)
+        else:
+            students = Student.objects.all()
+            if notification.target_type == 'AREA' and notification.target_area:
+                students = students.filter(room__building__area=notification.target_area)
+            elif notification.target_type == 'BUILDING' and notification.target_building:
+                students = students.filter(room__building=notification.target_building)
+            elif notification.target_type == 'ROOM' and notification.target_room:
+                students = students.filter(room=notification.target_room)
+
+        # Tạo UserNotification và gửi email
+        for student in students:
+            print(f"Sending notification to {student.full_name} ({student.user.email})")
+            UserNotification.objects.create(
+                student=student,
+                notification=notification
+            )
+            subject = f"Thông Báo: {notification.title}"
+            html_message = render_to_string('email/notification.html', {
+                'full_name': student.full_name,
+                'title': notification.title,
+                'content': notification.content,
+                'admin_email': settings.DEFAULT_FROM_EMAIL,
+            })
+            email = EmailMessage(
+                subject=subject,
+                body=html_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[student.user.email],
+            )
+            email.content_subtype = 'html'
+            
+            if notification.attachment:
+                file_url = notification.attachment.url
+                file_name = os.path.basename(file_url)
+                response = requests.get(file_url)
+                if response.status_code == 200:
+                    email.attach(file_name, response.content, 'application/pdf')
+
+            email.send(fail_silently=False)
+
+        if notification.notification_type == 'URGENT':
+            # TODO: Tích hợp Firebase/Twilio
+            pass
+
+        self.message_user(request, f"Đã gửi thông báo '{notification.title}' tới {students.count()} sinh viên.")
+        
+    def save_model(self, request, obj, form, change):
+        obj.clean() 
+        super().save_model(request, obj, form, change)
+        self.send_notification(request, obj)

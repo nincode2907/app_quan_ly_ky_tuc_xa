@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest
+from .models import User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services import process_qr_scan
@@ -245,6 +245,35 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 'student__room__room_type',
                 'student__room__building__area').order_by('id')
         return Bill.objects.filter(student__user=self.request.user).select_related('student__user')
+    
+class UserNotificationsViewSet(viewsets.ViewSet, generics.ListAPIView):
+    queryset = UserNotification.objects.none()
+    serializer_class = serializers.UserNotificationSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+    
+    def get_queryset(self):
+        if self.request.user.is_admin:
+            return UserNotification.objects.all().select_related(
+                'student__user',
+                'student__faculty',
+                'student__room__room_type',
+                'student__room__building__area').order_by('id')
+        return UserNotification.objects.filter(student__user=self.request.user).select_related('student__user')
+    
+    # API đánh dấu thông báo đã đọc
+    @action(detail=False, methods=['post'], url_path='mark-read')
+    def mark_notification_read(self, request):
+        notification_id = request.data.get('notification_id')
+        if not notification_id:
+            return Response({"error": "Thiếu thông tin."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user_notification = UserNotification.objects.get(student__user=request.user, id=notification_id)
+            user_notification.is_read = True
+            user_notification.save()
+            return Response({"message": "Đã đánh dấu thông báo là đã đọc."}, status=status.HTTP_200_OK)
+        except UserNotification.DoesNotExist:
+            return Response({"error": "Thông báo không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
     
 # account
 # /api/user/change_password/

@@ -13,6 +13,7 @@ router.register(r'room-requests', views.RoomRequestViewSet)
 router.register(r'contracts', views.ContractViewSet)
 router.register(r'violations', views.ViolationViewSet)
 router.register(r'bills', views.BillViewSet)
+router.register(r'notifications', views.UserNotificationsViewSet)
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),

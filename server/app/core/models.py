@@ -294,14 +294,23 @@ class CheckInOutLog(models.Model):
         return f"{self.student} - {self.date}"
     
 class Bill(models.Model):
+    STATUS_CHOICES = (
+        ('UNPAID', 'Chưa thanh toán'),
+        ('PAID', 'Đã thanh toán'),
+    )
+    
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="bills")
     amount = models.IntegerField()
-    due_date = models.DateField()
-    paid_date = models.DateField(blank=True, null=True)
-    status = models.CharField(max_length=20, default="unpaid")
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='UNPAID')
+    created_at = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateTimeField()
+    paid_date = models.DateTimeField(null=True, blank=True)
+    month = models.IntegerField()
+    year = models.IntegerField()
     
     def __str__(self):
-        return f"Bill {self.id} - {self.student}"
+        return f"Hóa đơn {self.student.full_name} - {self.amount} VNĐ - {self.status}"
 
 class Notification(models.Model):
     TYPE_CHOICES = (
@@ -361,3 +370,24 @@ class UserNotification(models.Model):
     
     def __str__(self):
         return f"{self.student.user.email} - {self.notification.title} - {self.is_read}"
+    
+class SupportRequest(models.Model):
+    TYPE_CHOICES = (
+        ('REPAIR', 'Sửa chữa'),
+        ('FEEDBACK', 'Phản ánh'),
+    )
+    STATUS_CHOICES = (
+        ('PENDING', 'Đang chờ'),
+        ('APPROVED', 'Đã duyệt'),
+        ('REJECTED', 'Đã từ chối'),
+    )
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='support_requests')
+    request_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    response = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.request_type} - {self.status}"

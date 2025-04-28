@@ -6,9 +6,9 @@ from django.utils.html import format_html, mark_safe
 from django.urls import reverse
 from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .forms import CustomUserCreationForm, CustomUserChangeForm
+from .forms import CustomUserCreationForm, CustomUserChangeForm, SupportRequestAdminForm
 from django.db.models import Count, Sum
-from .models import User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification
+from .models import SupportRequest, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -93,7 +93,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email','password1', 'password2', 'full_name', 'faculty', 'year_start', 'is_staff', 'is_superuser', 'is_admin', 'is_first_login')}
+            'fields': ('email','password1', 'password2', 'full_name', 'faculty', 'gender', 'year_start', 'is_staff', 'is_superuser', 'is_admin', 'is_first_login')}
         ),
     )
     
@@ -121,6 +121,7 @@ class UserAdmin(BaseUserAdmin):
             # Nhập thông tin sinh viên vào bảng Student
             student = Student.objects.create(
                 full_name=form.cleaned_data['full_name'],
+                gender=form.cleaned_data['gender'],
                 faculty=form.cleaned_data['faculty'],
                 year_start=form.cleaned_data['year_start'],
                 user=obj
@@ -128,10 +129,10 @@ class UserAdmin(BaseUserAdmin):
             
             subject = 'Thông Tin Tài Khoản Mới Ký Túc Xá Sinh Viên'
             html_message = render_to_string('email/welcome.html', {
-            'full_name': student.full_name,
-            'email': obj.email,
-            'password': form.cleaned_data['password1'],
-            'admin_email': settings.DEFAULT_FROM_EMAIL,
+                'full_name': student.full_name,
+                'email': obj.email,
+                'password': form.cleaned_data['password1'],
+                'admin_email': settings.DEFAULT_FROM_EMAIL,
             })
             try:
                 send_mail(
@@ -381,3 +382,48 @@ class NotificationAdmin(admin.ModelAdmin):
         obj.clean() 
         super().save_model(request, obj, form, change)
         self.send_notification(request, obj)
+        
+@admin.register(SupportRequest, site=admin_site)
+class SupportRequestAdmin(admin.ModelAdmin):
+    form = SupportRequestAdminForm
+    list_display = ('student', 'request_type', 'description', 'status', 'created_at')
+    list_filter = ('request_type', 'status', 'created_at')
+    search_fields = ('student__full_name', 'description')
+
+    def save_model(self, request, obj, form, change):
+        old_status = obj.status if change else None
+
+        # Lưu đối tượng trước để lấy trạng thái mới
+        super().save_model(request, obj, form, change)
+
+        # Nếu trạng thái thay đổi thành APPROVED hoặc REJECTED, gửi thông báo
+        if (not change and obj.status in ['APPROVED', 'REJECTED']) or (change and old_status == 'PENDING' and obj.status in ['APPROVED', 'REJECTED']):
+            # Xác định phản hồi
+            response_type = form.cleaned_data.get('response_type')
+            if obj.status == 'APPROVED':
+                default_response = "Yêu cầu của bạn đã được duyệt. Chúng tôi sẽ xử lý sớm."
+                title = "Yêu Cầu Hỗ Trợ Được Phê Duyệt"
+            else:  # REJECTED
+                default_response = "Yêu cầu của bạn đã bị từ chối do không đủ điều kiện."
+                title = "Yêu Cầu Hỗ Trợ Bị Từ Chối"
+
+            response = form.cleaned_data.get('custom_response') if response_type == 'custom' else default_response
+
+            # Cập nhật phản hồi
+            obj.response = response
+            obj.save()
+
+            # Tạo thông báo cá nhân
+            notification = Notification.objects.create(
+                title=title,
+                content=f"Yêu cầu {obj.request_type} của bạn đã được xử lý: {response}",
+                notification_type='NORMAL',
+                target_type='INDIVIDUAL',
+                target_student=obj.student
+            )
+            UserNotification.objects.create(
+                student=obj.student,
+                notification=notification
+            )
+
+            self.message_user(request, f"Đã xử lý yêu cầu của {obj.student.full_name}.")

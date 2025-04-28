@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification
+from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services import process_qr_scan
@@ -92,6 +92,32 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         if student.is_blocked:
             return Response({"error": "Bạn đã bị khóa tài khoản. Vui lòng liên hệ với quản trị viên."}, status=status.HTTP_403_FORBIDDEN)
         
+        current_date = timezone.now()
+        day = current_date.day
+        month = current_date.month
+        year = current_date.year
+        
+        is_change_request = student.room is not None    
+        # if not (16 <= day <= 20) and is_change_request:
+        #     return Response({"error": "Chỉ được gửi yêu cầu chuyển phòng từ ngày 16 đến 20 hằng tháng."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        unpaid_bills = Bill.objects.filter(
+            student = student,
+            status='UNPAID'
+        )
+        
+        if unpaid_bills.exists():
+            return Response({"error": "Bạn cần thanh toán hóa đơn để gửi yêu cầu chuyển phòng."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        existing_requests = RoomRequest.objects.filter(
+            student=student,
+            created_at__year=year,
+            created_at__month=month
+        )
+        
+        if existing_requests.exists():
+            return Response({"error": "Bạn chỉ được gửi 1 yêu cầu chuyển phòng mỗi tháng."}, status=status.HTTP_400_BAD_REQUEST)
+        
         requested_room_id = request.data.get('requested_room_id')
         reason = request.data.get('reason')
         try:
@@ -108,7 +134,6 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         if RoomRequest.objects.filter(student=student, status='PENDING').exists():
             return Response({"error": "Bạn đã có một yêu cầu đang chờ xử lý."}, status=status.HTTP_400_BAD_REQUEST)
         
-        is_change_request = student.room is not None
         if is_change_request and not reason:
             return Response({"error": "Lý do đổi phòng là bắt buộc."}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -274,6 +299,42 @@ class UserNotificationsViewSet(viewsets.ViewSet, generics.ListAPIView):
             return Response({"message": "Đã đánh dấu thông báo là đã đọc."}, status=status.HTTP_200_OK)
         except UserNotification.DoesNotExist:
             return Response({"error": "Thông báo không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+        
+class SupportRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.CreateAPIView):
+    queryset = SupportRequest.objects.none()
+    serializer_class = serializers.SupportRequestSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        return SupportRequest.objects.filter(student__user=self.request.user).order_by('-created_at')
+
+    def create(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        pending_requests = SupportRequest.objects.filter(student=student, status='PENDING')
+        if pending_requests.exists():
+            return Response({"error": "Bạn có một yêu cầu đang chờ xử lý. Vui lòng chờ phản hồi trước khi gửi yêu cầu mới."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        request_type = request.data.get('request_type')
+        description = request.data.get('description')
+
+        if not request_type or not description:
+            return Response({"error": "Vui lòng cung cấp loại yêu cầu và mô tả."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request_type not in ['REPAIR', 'FEEDBACK']:
+            return Response({"error": "Loại yêu cầu không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        support_request = SupportRequest.objects.create(
+            student=student,
+            request_type=request_type,
+            description=description
+        )
+
+        serializer = self.get_serializer(support_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 # account
 # /api/user/change_password/

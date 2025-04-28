@@ -1,0 +1,136 @@
+<!-- templates/email/bill_notification.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hóa Đơn Tháng</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .content h2 {
+            color: #4CAF50;
+        }
+        .content p {
+            margin: 10px 0;
+        }
+        .bill-details {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .bill-details table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        .bill-details table th, .bill-details table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .bill-details table th {
+            background-color: #f1f1f1;
+            font-weight: bold;
+        }
+        .bill-details table td {
+            color: #555;
+        }
+        .discount-note {
+            color: #e91e63;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9em;
+            color: #777;
+        }
+        .highlight {
+            font-weight: bold;
+            color: #e91e63;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Hóa Đơn Tháng {{ month }}/{{ year }}</h1>
+        </div>
+        <div class="content">
+            <h2>Anh nhắc em {{ student_name }},</h2>
+            <p>Hóa đơn tháng {{ month }}/{{ year }} của bạn đã được tạo. Vui lòng kiểm tra chi tiết dưới đây:</p>
+            <div class="bill-details">
+                <table>
+                    <tr>
+                        <th>Khoản phí</th>
+                        <th>Số tiền (VNĐ)</th>
+                    </tr>
+                    <tr>
+                        <td>Tiền phòng</td>
+                        <td>{{ room_fee }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tiền điện</td>
+                        <td>{{ electricity_fee }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tiền nước</td>
+                        <td>{{ water_fee }}</td>
+                    </tr>
+                    <tr>
+                        <td>Phí quản lý</td>
+                        <td>{{ management_fee }}</td>
+                    </tr>
+                    <tr>
+                        <td>Phí vệ sinh</td>
+                        <td>{{ cleaning_fee }}</td>
+                    </tr>
+                    <tr>
+                        <td>Tổng</td>
+                        <td>
+                            {{ total_fee}}
+                        </td>
+                    </tr>
+                </table>
+                {% if discount_note %}
+                    <p class="discount-note">{{ discount_note }}</p>
+                {% endif %}
+            </div>
+            <p>Tổng tiền: <span class="highlight">{{ total_amount }} VNĐ</span></p>
+            <p>Hạn thanh toán: <span class="highlight">{{ due_date }}</span></p>
+            <p>Vui lòng thanh toán đúng hạn để tránh bị phạt.</p>
+        </div>
+        <div class="footer">
+            <p>Trân trọng,</p>
+            <p>Hệ thống quản lý KTX</p>
+        </div>
+    </div>
+</body>
+</html>

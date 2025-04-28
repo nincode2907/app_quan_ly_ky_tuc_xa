@@ -2,12 +2,23 @@
 <html>
 <head>
     <title>Thông Báo Ký Túc Xá</title>
+    <style>
+        .footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
 </head>
 <body>
     <h2>Chào {{ full_name }},</h2>
     <h3>{{ title }}</h3>
     <div>{{ content | safe }}</div>
     <p>Vui lòng liên hệ quản trị viên qua email {{ admin_email }} nếu có thắc mắc.</p>
-    <p>Trân trọng,<br>Hệ thống Ký Túc Xá Sinh Viên</p>
+    <div class="footer">
+        <p>Trân trọng,</p>
+        <p>Hệ thống quản lý KTX</p>
+    </div>
 </body>
 </html>

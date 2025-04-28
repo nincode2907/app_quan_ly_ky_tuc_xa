@@ -108,7 +108,7 @@ REST_FRAMEWORK = {
 }
 
 OAUTH2_PROVIDER = {
-    # 'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,  # Access token hết hạn sau 1 giờ
     'REFRESH_TOKEN_EXPIRE_SECONDS': 1209600,  # Refresh token hết hạn sau 14 ngày
     'SCOPES': {

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill, RoomRequest, Notification, UserNotification
+from .models import SupportRequest, User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill, RoomRequest, Notification, UserNotification
 
 class FacultySerializer(serializers.ModelSerializer):
     class Meta:
@@ -93,7 +93,7 @@ class BillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bill
-        fields = ['id', 'student', 'amount', 'due_date', 'paid_date', 'status']
+        fields = ['id', 'student', 'amount', 'due_date', 'paid_date', 'status', 'description']
         
 class NotificationSerializer(serializers.ModelSerializer):
     attachment = serializers.SerializerMethodField()
@@ -111,3 +111,10 @@ class UserNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserNotification
         fields = ['id', 'notification', 'is_read', 'created_at']
+        
+class SupportRequestSerializer(serializers.ModelSerializer):
+    student = serializers.StringRelatedField()
+
+    class Meta:
+        model = SupportRequest
+        fields = ['id', 'student', 'request_type', 'description', 'status', 'response', 'created_at']

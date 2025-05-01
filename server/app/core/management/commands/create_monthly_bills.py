@@ -5,7 +5,7 @@ from core.models import Student, Room, Contract, Bill, Notification, UserNotific
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 import random
-
+from core.templates import index
 from django.conf import settings
 
 class Command(BaseCommand):
@@ -71,7 +71,7 @@ class Command(BaseCommand):
             'discount_note': "Bạn được giảm 50% số tiền do đăng ký mới" if discount_applied else "",
             'due_date': bill.due_date.strftime('%d/%m/%Y'),
         }
-        html_message = render_to_string('email/bill_notification.html', email_context)
+        html_message = render_to_string(index.templates['e_bill_notification'], email_context)
 
         try:
             email_address = student.user.email

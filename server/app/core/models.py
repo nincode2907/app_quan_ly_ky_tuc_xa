@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 import uuid
@@ -11,6 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.files import File
 from django.core.exceptions import ValidationError
 from ckeditor_uploader.fields import RichTextUploadingField
+from django.contrib.auth.hashers import make_password, check_password
 # from .utils import validate_image_extension
 
 MAX_VIOLATIONS = settings.MAX_VIOLATIONS
@@ -391,3 +393,35 @@ class SupportRequest(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} - {self.request_type} - {self.status}"
+    
+class OTP(models.Model):
+    email = models.EmailField()
+    otp_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expired_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+ 
+    def save(self, *args, **kwargs):
+        if not self.expired_at: 
+            self.expired_at = timezone.now() + timedelta(minutes=5)
+            
+        if not self.otp_hash.startswith('pbkdf2_sha256$'):
+            self.otp_hash = make_password(self.otp_hash)
+        super().save(*args, **kwargs)
+    
+    def is_valid(self, otp_code):
+        return (
+            not self.is_used and
+            self.expired_at > timezone.now() and
+            check_password(otp_code, self.otp_hash)
+        )
+        
+    def __str__(self):
+        return f"OTP for {self.email}"
+        
+class PaymentMethod(models.Model):
+    name = models.CharField(max_length=255, null=False)
+    image = CloudinaryField('image', folder='payments', blank=True, null=True)
+
+    def __str__(self):
+        return self.name

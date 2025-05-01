@@ -15,6 +15,7 @@ from django.template.loader import render_to_string
 from django.core.mail import send_mail, EmailMessage
 import requests
 import os
+from .templates import index
 
 # Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
@@ -128,7 +129,7 @@ class UserAdmin(BaseUserAdmin):
             )
             
             subject = 'Thông Tin Tài Khoản Mới Ký Túc Xá Sinh Viên'
-            html_message = render_to_string('email/welcome.html', {
+            html_message = render_to_string(index.templates['e_welcome'], {
                 'full_name': student.full_name,
                 'email': obj.email,
                 'password': form.cleaned_data['password1'],
@@ -241,7 +242,7 @@ class RoomRequestAdmin(admin.ModelAdmin):
 
             # Gửi email thông báo
             subject = 'Thông Báo Phê Duyệt Yêu Cầu Phòng'
-            html_message = render_to_string('email/room_request_approved.html', {
+            html_message = render_to_string(index.templates['e_room_request_approved'], {
                 'full_name': room_request.student.full_name,
                 'room': room_request.requested_room,
                 'admin_email': settings.DEFAULT_FROM_EMAIL,
@@ -349,7 +350,7 @@ class NotificationAdmin(admin.ModelAdmin):
                 notification=notification
             )
             subject = f"Thông Báo: {notification.title}"
-            html_message = render_to_string('email/notification.html', {
+            html_message = render_to_string(index.templates['e_notification'], {
                 'full_name': student.full_name,
                 'title': notification.title,
                 'content': notification.content,

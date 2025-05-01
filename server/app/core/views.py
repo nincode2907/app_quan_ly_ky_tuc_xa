@@ -7,12 +7,14 @@ from django.core.exceptions import ValidationError
 from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification
 from core import serializers
 from .perms import IsAdminOrSelf
+from .services.create_otp import OTPService
 from .services import process_qr_scan
 import random
 import string
 from django.utils import timezone
 from django.conf import settings
 import re
+from django.contrib.auth.models import AnonymousUser
 
 # Create your views here.
 class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -342,28 +344,76 @@ class SupportRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Cre
 @permission_classes([permissions.IsAuthenticated, IsAdminOrSelf])
 def change_password(request):
     user = request.user
-    old_password = request.data.get('old_password')
     new_password = request.data.get('new_password')
+    old_password = request.data.get('old_password')
+    password_pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
     
-    if not all([old_password, new_password]):
-        return Response({"error": "Vui lòng cung cấp mật khẩu cũ và mật khẩu mới."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if not user.check_password(old_password):
-        return Response({"error": "Mật khẩu cũ không đúng."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if user.check_password(new_password):
-        return Response({"error": "Mật khẩu mới không được giống mật khẩu cũ."}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if not re.match(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$', new_password):
-        return Response({
-            "error": "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (@$!%*?&)."
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+    if user.is_first_login:
+        if not new_password:
+            return Response({"error": "Vui lòng cung cấp mật khẩu mới."}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        if not all([old_password, new_password]):
+            return Response({"error": "Vui lòng cung cấp mật khẩu cũ và mật khẩu mới."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not user.check_password(old_password):
+            return Response({"error": "Mật khẩu cũ không đúng."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user.check_password(new_password):
+            return Response({"error": "Mật khẩu mới không được giống mật khẩu cũ."}, status=status.HTTP_400_BAD_REQUEST)
+        
+    # if not re.match(password_pattern, new_password):
+    #     return Response({
+    #         "error": "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
+    #     }, status=status.HTTP_400_BAD_REQUEST)
+        
     user.set_password(new_password)
     user.is_first_login = False
     user.save()
-    
     return Response({"message": "Đổi mật khẩu thành công."}, status=status.HTTP_200_OK)
+
+# /api/user/request-otp/
+@api_view(['POST'])
+@permission_classes([])
+def request_otp(request):
+    user = request.user
+    try:
+        if isinstance(user, AnonymousUser):
+            email = request.data.get('email')
+            if not email:
+                return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
+            OTPService.create_and_send_otp(email = email)
+        else:
+            OTPService.create_and_send_otp(user = user)
+            
+        return Response({"message": "Mã OTP đã được gửi đến email của bạn."}, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+# /api/user/verify-otp/
+@api_view(['POST'])
+@permission_classes([])
+def verify_otp(request):
+    user = request.user
+    otp = request.data.get('otp')
+    if not otp:
+        return Response({"error": "Vui lòng cung cấp mã OTP."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        if isinstance(user, AnonymousUser):
+            email = request.data.get('email')
+            if not email:
+                return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if OTPService.verify_otp(otp, email = email) == False:
+                return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        elif OTPService.verify_otp(otp, user = user) == False:
+            return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({"message": "Mã OTP hợp lệ."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # /api/user/me/
 @api_view(['GET'])

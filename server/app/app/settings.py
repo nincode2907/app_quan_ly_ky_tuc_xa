@@ -19,7 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = config('DEBUG_MODE', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY', cast=str)
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.1',
+]
 
 AUTH_USER_MODEL = 'core.User'
 
@@ -204,6 +207,10 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER') 
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL') 
+
+# setting payment momo url
+SANDBOX_REDIRECT_URL="https://" + ALLOWED_HOSTS[0] + "/api/payment_success/"
+SANDBOX_IPN_URL="https://" + ALLOWED_HOSTS[0] + "/api/momo_notify/"
 
 INTERNAL_IPS = [
     '127.0.0.1',

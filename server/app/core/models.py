@@ -420,8 +420,27 @@ class OTP(models.Model):
         return f"OTP for {self.email}"
         
 class PaymentMethod(models.Model):
-    name = models.CharField(max_length=255, null=False)
+    name = models.CharField(max_length=255, null=False, unique=True)
     image = CloudinaryField('image', folder='payments', blank=True, null=True)
 
     def __str__(self):
         return self.name
+      
+class PaymentTransaction(models.Model):
+    TRANSACTION_STATUS_CHOICES = (
+        ('PENDING', 'Đang chờ xử lý'),
+        ('SUCCESS', 'Thành công'),
+        ('FAILED', 'Thất bại'),
+    )
+
+    bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='transactions')
+    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.SET_NULL, null=True)
+    amount = models.IntegerField()
+    transaction_id = models.CharField(max_length=100, unique=True)  # ID giao dịch từ MoMo
+    status = models.CharField(max_length=20, choices=TRANSACTION_STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    response_data = models.JSONField(null=True, blank=True)  # Lưu dữ liệu trả về từ MoMo
+
+    def __str__(self):
+        return f"Giao dịch {self.transaction_id} - {self.status}"

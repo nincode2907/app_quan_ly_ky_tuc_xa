@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification
+from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services.create_otp import OTPService
@@ -13,8 +13,10 @@ import random
 import string
 from django.utils import timezone
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 import re
 from django.contrib.auth.models import AnonymousUser
+from .services.payment import PaymentService
 
 # Create your views here.
 class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
@@ -338,6 +340,28 @@ class SupportRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Cre
         serializer = self.get_serializer(support_request)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+class PaymentMethodViewSet(viewsets.ViewSet, generics.ListAPIView):
+    queryset = PaymentMethod.objects.none()
+    serializer_class = serializers.PaymentMethodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PaymentMethod.objects.all().order_by('id')
+    
+class PaymentTransactionViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
+    queryset = PaymentTransaction.objects.none()
+    serializer_class = serializers.PaymentTransactionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        if self.request.user.is_admin:
+            return PaymentTransaction.objects.all().select_related(
+                'bill__student__user',
+                'bill__student__faculty',
+                'bill__student__room__room_type',
+                'bill__student__room__building__area').order_by('id')
+        return PaymentTransaction.objects.filter(bill__student__user=self.request.user).select_related('bill__student__user')
+    
 # account
 # /api/user/change_password/
 @api_view(['POST'])
@@ -426,3 +450,51 @@ def user_me(request):
         "is_admin": user.is_admin,
         "is_first_login": user.is_first_login,
     }, status=status.HTTP_200_OK)
+    
+# /api/payment/initiate-payment/
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated, IsAdminOrSelf])
+def initiate_payment(request):
+    bill_id = request.data.get('bill_id')
+    payment_method_id = request.data.get('payment_method_id')
+
+    bill = get_object_or_404(Bill, id=bill_id)
+    payment_method = get_object_or_404(PaymentMethod, id=payment_method_id)
+
+    try:
+        service = PaymentService.get_service(payment_method.name)
+        pay_url = service.create_payment(bill)
+        return Response({'status': 'success', 'pay_url': pay_url})
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@csrf_exempt
+@api_view(['GET'])
+@permission_classes([])
+def payment_return(request):
+    transaction_id = request.query_params.get('orderId')
+    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id)
+    payment_method = transaction.payment_method
+    
+    try:
+        service = PaymentService.get_service(payment_method.name)
+        success = service.handle_callback(request.query_params)
+        
+        return { 'status': 'success' if success else 'failed' , status: status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST} 
+    except Exception as e:
+        return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([])
+def payment_notify(request):
+    transaction_id = request.data.get('orderId')
+    transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id)
+    payment_method = transaction.payment_method
+
+    try:
+        service = PaymentService.get_service(payment_method.name)
+        service.handle_callback(request.data)
+        return Response(status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(status=status.HTTP_400_BAD_REQUEST)

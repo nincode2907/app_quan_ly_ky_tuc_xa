@@ -8,7 +8,7 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm, SupportRequestAdminForm
 from django.db.models import Count, Sum
-from .models import SupportRequest, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification
+from .models import SupportRequest, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -323,8 +323,11 @@ class AreaAdmin(admin.ModelAdmin):
     def building_count(self, obj):
         return obj.buildings.count()
     building_count.short_description = "Số Tòa Nhà"
-
-
+    
+@admin.register(PaymentMethod, site=admin_site)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    
 @admin.register(Notification, site=admin_site)
 class NotificationAdmin(admin.ModelAdmin):
     list_display = ('title', 'notification_type', 'target_type', 'created_at')

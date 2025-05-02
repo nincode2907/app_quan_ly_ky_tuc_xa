@@ -15,11 +15,15 @@ router.register(r'violations', views.ViolationViewSet)
 router.register(r'bills', views.BillViewSet)
 router.register(r'notifications', views.UserNotificationsViewSet)
 router.register(r'support-requests', views.SupportRequestViewSet)
+router.register(r'payment-methods', views.PaymentMethodViewSet)
+router.register(r'payment-transactions', views.PaymentTransactionViewSet)
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),
     path('user/change_password/', change_password, name='change_password'),
     path('request-otp/', views.request_otp, name='request_otp'),
     path('verify-otp/', views.verify_otp, name='verify_otp'),
+    path('initiate-payment/', views.initiate_payment, name='initiate_payment'),
+    path('payment/return/', views.payment_return, name='payment_return'),
     path('', include(router.urls)),
 ]

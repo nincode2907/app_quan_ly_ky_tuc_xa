@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SupportRequest, User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill, RoomRequest, Notification, UserNotification
+from .models import PaymentMethod, SupportRequest, User, Student, Faculty, Area, Building, RoomType, Room, Contract, Violation, QRCode, CheckInOutLog, Bill, RoomRequest, Notification, UserNotification, PaymentTransaction
 
 class FacultySerializer(serializers.ModelSerializer):
     class Meta:
@@ -118,3 +118,13 @@ class SupportRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = SupportRequest
         fields = ['id', 'student', 'request_type', 'description', 'status', 'response', 'created_at']
+        
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'name']
+        
+class PaymentTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentTransaction
+        fields = ['id', 'transaction_id', 'amount', 'status', 'bill', 'response_data']

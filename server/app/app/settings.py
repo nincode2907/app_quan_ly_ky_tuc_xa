@@ -19,10 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 DEBUG = config('DEBUG_MODE', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY', cast=str)
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.1',
-]
+ALLOWED_HOSTS = ['*']
 
 AUTH_USER_MODEL = 'core.User'
 
@@ -63,7 +60,8 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'debug_toolbar',
     'ckeditor',
-    'ckeditor_uploader'
+    'ckeditor_uploader',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -96,6 +94,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'app.wsgi.application'
+
+ASGI_APPLICATION = 'app.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],  # Redis server
+        },
+    },
+}
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

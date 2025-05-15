@@ -444,3 +444,23 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f"Giao dịch {self.transaction_id} - {self.status}"
+    
+class Message(models.Model):
+    STATUS_CHOICES = (
+        ("PENDING_AI", "Đang chờ AI"),
+        ("PENDING_ADMIN", "Đang chờ admin"),
+        ("RESOLVED", "Đã giải quyết"),
+    )
+    
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
+    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="received_messages", null=True, blank=True)
+    content = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING_AI")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_from_admin = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['timestamp']
+        
+    def __str__(self):
+        return f"Message from {self.sender.email} at {self.timestamp}"

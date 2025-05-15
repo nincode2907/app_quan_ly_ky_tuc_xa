@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services.create_otp import OTPService
 from .services import process_qr_scan
 import random
 import string
+from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -275,7 +276,7 @@ class BillViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
                 'student__room__building__area').order_by('id')
         return Bill.objects.filter(student__user=self.request.user).select_related('student__user')
     
-class UserNotificationsViewSet(viewsets.ViewSet, generics.ListAPIView):
+class UserNotificationsViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = UserNotification.objects.none()
     serializer_class = serializers.UserNotificationSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
@@ -498,3 +499,45 @@ def payment_notify(request):
         return Response(status=status.HTTP_200_OK)
     except Exception as e:
         return Response(status=status.HTTP_400_BAD_REQUEST)
+    
+# API cho admin lấy danh sách sinh viên có tin nhắn cần trả lời
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def pending_students(request):
+    # Lấy danh sách sinh viên có tin nhắn PENDING_ADMIN
+    pending_messages = Message.objects.filter(status='PENDING_ADMIN').select_related('sender')
+    students = {}
+    for message in pending_messages:
+        student = message.sender
+        if student.id not in students:
+            students[student.id] = {
+                'id': student.id,
+                'username': student.username,
+                'full_name': student.student.full_name if hasattr(student, 'student') else student.username,
+                'latest_message': message.content,
+                'timestamp': message.timestamp.isoformat()
+            }
+
+    return Response(list(students.values()))
+
+# API cho admin lấy lịch sử chat với một sinh viên
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def chat_history(request, student_id):
+    student = get_object_or_404(User, id=student_id)
+    messages = Message.objects.filter(
+        models.Q(sender=student, receiver__isnull=True) |  # Tin nhắn từ sinh viên
+        models.Q(sender=student, receiver=request.user) |  # Tin nhắn từ sinh viên gửi admin
+        models.Q(sender=request.user, receiver=student)    # Tin nhắn từ admin gửi sinh viên
+    ).order_by('timestamp')
+
+    message_data = [
+        {
+            'id': msg.id,
+            'content': msg.content,
+            'sender': msg.sender.username,
+            'is_from_admin': msg.is_from_admin,
+            'timestamp': msg.timestamp.isoformat()
+        } for msg in messages
+    ]
+    return Response(message_data)

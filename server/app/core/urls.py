@@ -2,6 +2,8 @@ from django.urls import path, include
 from . import views
 from rest_framework.routers import DefaultRouter
 from .views import user_me, change_password
+from .consumers import ChatConsumer
+from django.urls import re_path
 
 router = DefaultRouter()
 router.register(r'students', views.StudentViewSet)
@@ -25,5 +27,11 @@ urlpatterns = [
     path('verify-otp/', views.verify_otp, name='verify_otp'),
     path('initiate-payment/', views.initiate_payment, name='initiate_payment'),
     path('payment/return/', views.payment_return, name='payment_return'),
+    # path('chat/pending-students/', views.pending_students, name='pending_students'),
+    # path('chat/history/<int:student_id>/', views.chat_history, name='chat_history'),
     path('', include(router.urls)),
 ]
+
+# websocket_urlpatterns = [
+#     re_path(r'ws/chat/$', ChatConsumer.as_asgi()),
+# ]

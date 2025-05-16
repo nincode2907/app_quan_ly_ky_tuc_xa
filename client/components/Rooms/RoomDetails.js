@@ -1,0 +1,117 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { Ionicons, AntDesign } from '@expo/vector-icons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useLikedRooms } from '../../contexts/LikedRoomsContext';
+import StyleRoomDetails from './StyleRoomDetails';
+import { authApis, endpoints } from "../../configs/Apis";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const RoomDetails = () => {
+    const nav = useNavigation();
+    const route = useRoute();
+    const { roomId } = route.params; 
+
+    const { likedRooms, toggleLike } = useLikedRooms();
+
+    const [room, setRoom] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const isFavorite = room && likedRooms[room.id] !== undefined;
+
+    const handleToggleFavorite = () => {
+        if (room) toggleLike(room);
+    };
+
+    const fetchRoomDetails = async () => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            if (!token) {
+                console.warn("Chưa có token, vui lòng đăng nhập!");
+                setLoading(false);
+                return;
+            }
+
+            const url = `${endpoints.rooms.endsWith('/') ? endpoints.rooms : endpoints.rooms + '/'}${roomId}/`;
+
+            const response = await authApis(token).get(url);
+            setRoom(response.data);
+        } catch (error) {
+            console.error('Error fetching room details:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    useEffect(() => {
+        console.log('Room ID nhận được:', roomId);
+        fetchRoomDetails();
+    }, [roomId]);
+
+    if (loading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#E3C7A5" />
+            </View>
+        );
+    }
+
+    if (!room) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text>Không thể tải dữ liệu phòng.</Text>
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ flex: 1 }}>
+            <ScrollView style={StyleRoomDetails.container}>
+                <Image
+                    source={{ uri: room.image || 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744606423/jpcya6itafrlh7inth29.jpg' }}
+                    style={StyleRoomDetails.roomImage}
+                />
+
+                <View style={StyleRoomDetails.infoContainer}>
+                    <View style={StyleRoomDetails.headerRow}>
+                        <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - {room.building?.name}</Text>
+                        <TouchableOpacity onPress={handleToggleFavorite}>
+                            <AntDesign
+                                name={isFavorite ? 'heart' : 'hearto'}
+                                size={24}
+                                color={isFavorite ? 'red' : '#B0B0B0'}
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={StyleRoomDetails.roomPrice}>{room.room_type?.price.toLocaleString()} VNĐ</Text>
+
+                    <View style={StyleRoomDetails.infoRow}>
+                        <AntDesign name="user" size={18} color="#B0B0B0" />
+                        <Text style={StyleRoomDetails.infoText}>{room.available_slots}/{room.room_type?.capacity}</Text>
+                    </View>
+
+                    <View style={StyleRoomDetails.infoRow}>
+                        <Ionicons name="home-outline" size={18} color="#B0B0B0" />
+                        <Text style={StyleRoomDetails.infoText}>Tầng {room.floor} - {room.building?.area?.name}</Text>
+                    </View>
+
+                    <Text style={[StyleRoomDetails.title, { marginTop: 16 }]}>Thông tin chi tiết phòng</Text>
+                    <Text style={StyleRoomDetails.description}>
+                        {room.room_type?.description || 'Phòng đầy đủ tiện nghi: máy lạnh, wifi tốc độ cao, giường tầng, vệ sinh riêng,...'}
+                    </Text>
+                </View>
+            </ScrollView>
+
+            <View style={StyleRoomDetails.buttonContainer}>
+                <TouchableOpacity style={StyleRoomDetails.button} onPress={() => nav.navigate('roomRegister')}>
+                    <Ionicons name="sync-outline" size={22} color="#E3C7A5" />
+                    <Text style={StyleRoomDetails.buttonText}>  Đăng ký đổi phòng</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
+
+export default RoomDetails;

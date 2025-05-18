@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import FavoriteRoom, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services.create_otp import OTPService
@@ -48,44 +48,31 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         except Student.DoesNotExist:
             return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
         
-        phone = request.data.get('phone')
-        avatar = request.data.get('avatar')
-        gender = request.data.get('gender')
-        home_town = request.data.get('home_town')
-        date_of_birth = request.data.get('date_of_birth')
-        student_id = request.data.get('student_id')
+        user_data = {
+        'phone': request.data.get('phone'),
+        'avatar': request.data.get('avatar')
+        }
+        student_data = {
+            'gender': request.data.get('gender'),
+            'home_town': request.data.get('home_town'),
+            'date_of_birth': request.data.get('date_of_birth'),
+            'student_id': request.data.get('student_id')
+        }
         
-        if not all([phone, gender, home_town, date_of_birth, student_id]):
-            return Response({"error": "Vui lòng cung cấp đầy đủ thông tin: số điện thoại, giới tính, quê quán, ngày sinh, mã sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+        user_serializer = serializers.UserSerializer(request.user, data=user_data, partial=True)
+        student_serializer = serializers.StudentSerializer(student, data=student_data, partial=True)
         
-        user.phone = phone
-        if avatar:
-            user.avatar = avatar
-        user.save()
-        
-        student.gender = gender
-        student.home_town = home_town
-        student.date_of_birth = date_of_birth
-        student.student_id = student_id
-        student.save()
-        
-        return Response({
-            "message": "Cập nhật hồ sơ thành công.",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "phone": user.phone,
-            },
-            "student": {
-                "full_name": student.full_name,
-                "faculty": student.faculty.name,
-                "year_start": student.year_start,
-                "gender": student.gender,
-                "home_town": student.home_town,
-                "date_of_birth": str(student.date_of_birth),
-                "student_id": student.student_id,
-            }
-        }, status=status.HTTP_200_OK)
+        if user_serializer.is_valid() and student_serializer.is_valid():
+            user_serializer.save()
+            student_serializer.save()
+            return Response({
+                "message": "Cập nhật hồ sơ thành công.",
+                "user": user_serializer.data,
+                "student": student_serializer.data
+            }, status=status.HTTP_200_OK)
+        else:
+            errors = {**user_serializer.errors, **student_serializer.errors}
+            return Response({"error": errors}, status=status.HTTP_400_BAD_REQUEST)
         
     @action(detail=False, methods=['POST'], url_path='room-request')
     def room_request(self, request):
@@ -214,6 +201,69 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
             available_slots__gt=0
         ).select_related('building__area', 'room_type').order_by('room_type__capacity', 'available_slots')
         
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Lấy danh sách phòng yêu thích của sinh viên
+        favorite_room_ids = FavoriteRoom.objects.filter(student=student).values_list('room_id', flat=True)
+        
+        # Serialize dữ liệu phòng
+        serializer = self.get_serializer(queryset, many=True)
+        rooms_data = serializer.data
+        
+        # Thêm trạng thái is_favorite vào mỗi phòng
+        for room_data in rooms_data:
+            room_data['is_favorite'] = room_data['id'] in favorite_room_ids
+
+        return Response(rooms_data, status=status.HTTP_200_OK)
+    @action(detail=False, methods=['get'], url_path='favorites')
+    def favorite_rooms(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        favorite_rooms = Room.objects.filter(
+            favorited_by__student=student
+        ).select_related('building__area', 'room_type').order_by('favorited_by__created_at')
+        
+        serializer = self.get_serializer(favorite_rooms, many=True)
+        rooms_data = serializer.data
+        for room_data in rooms_data:
+            room_data['is_favorite'] = True  
+
+        return Response(rooms_data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['POST'], url_path='toggle-favorite')
+    def toggle_favorite(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        room_id = request.data.get('room_id')
+        try:
+            room = Room.objects.get(id=room_id)
+        except Room.DoesNotExist:
+            return Response({"error": "Phòng không tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if room.building.gender != student.gender:
+            return Response({"error": "Phòng không phù hợp với giới tính của bạn."}, status=status.HTTP_400_BAD_REQUEST)
+
+        favorite_room = FavoriteRoom.objects.filter(student=student, room=room).first()
+        if favorite_room:
+            favorite_room.delete()
+            return Response({"message": "Đã xóa phòng khỏi danh sách yêu thích.", "is_favorite": False}, status=status.HTTP_200_OK)
+        else:
+            if room.available_slots <= 0:
+                return Response({"error": "Phòng đã hết giường trống."}, status=status.HTTP_400_BAD_REQUEST)
+            favorite_room = FavoriteRoom.objects.create(student=student, room=room)
+            return Response({"message": "Đã thêm phòng vào danh sách yêu thích.", "is_favorite": True}, status=status.HTTP_201_CREATED)
+
 class RoomRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = RoomRequest.objects.none()
     serializer_class = serializers.RoomRequestSerializer
@@ -231,7 +281,7 @@ class RoomRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retrie
                 'requested_room__room_type',
                 'requested_room__building__area').order_by('id')
         return RoomRequest.objects.filter(student__user=self.request.user).select_related('student__user')
-        
+    
 class ContractViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Contract.objects.none()
     serializer_class = serializers.ContractSerializer
@@ -363,6 +413,55 @@ class PaymentTransactionViewSet(viewsets.ViewSet, generics.ListAPIView, generics
                 'bill__student__room__building__area').order_by('id')
         return PaymentTransaction.objects.filter(bill__student__user=self.request.user).select_related('bill__student__user')
     
+class FavoriteRoomViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.DestroyAPIView):
+    queryset = FavoriteRoom.objects.none()
+    serializer_class = serializers.FavoriteRoomSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    # def get_queryset(self):
+    #     try:
+    #         student = self.request.user.students
+    #     except Student.DoesNotExist:
+    #         raise ValidationError("Không tìm thấy thông tin sinh viên.")
+    #     return FavoriteRoom.objects.filter(student=student).select_related('room__building__area', 'room__room_type').order_by('-created_at')
+
+    def create(self, request):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        room_id = request.data.get('room_id')
+        try:
+            room = Room.objects.get(id=room_id)
+        except Room.DoesNotExist:
+            return Response({"error": "Phòng không tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if room.building.gender != student.gender:
+            return Response({"error": "Phòng không phù hợp với giới tính của bạn."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if FavoriteRoom.objects.filter(student=student, room=room).exists():
+            return Response({"error": "Phòng đã có trong danh sách yêu thích."}, status=status.HTTP_400_BAD_REQUEST)
+
+        favorite_room = FavoriteRoom.objects.create(student=student, room=room)
+        serializer = self.get_serializer(favorite_room)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], url_path='remove')
+    def remove_favorite(self, request, pk=None):
+        try:
+            student = request.user.students
+        except Student.DoesNotExist:
+            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            favorite_room = FavoriteRoom.objects.get(id=pk, student=student)
+        except FavoriteRoom.DoesNotExist:
+            return Response({"error": "Phòng không có trong danh sách yêu thích."}, status=status.HTTP_404_NOT_FOUND)
+
+        favorite_room.delete()
+        return Response({"message": "Đã xóa phòng khỏi danh sách yêu thích."}, status=status.HTTP_200_OK)
+    
 # account
 # /api/user/change_password/
 @api_view(['POST'])
@@ -480,8 +579,7 @@ def payment_return(request):
     try:
         service = PaymentService.get_service(payment_method.name)
         success = service.handle_callback(request.query_params)
-        
-        return { 'status': 'success' if success else 'failed' , status: status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST} 
+        return Response({'status': 'success' if success else 'failed'}, status=status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -541,3 +639,4 @@ def chat_history(request, student_id):
         } for msg in messages
     ]
     return Response(message_data)
+

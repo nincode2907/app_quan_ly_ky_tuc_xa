@@ -66,8 +66,8 @@ const Login = () => {
             const data = {
                 username: user.username,
                 password: user.password,
-                client_id: "rsD5UP6UMNQ4YGXOkDnOEkOrwmj5aPhIB9e3ED9q",
-                client_secret: "uizunx3ammvJVASLgW6k27pjukNiOXX1pc563NHWyHaKMGWslz2Sqolc08u1ISdlOFgtXTjHiDq8KOPgKQCnxjy3z57cGLetVLwtjjXjGEBN4fA9eI5ulbVspgqlYtDJ",
+                client_id: "Cu3HL1ySqXavkOfzvqfAE827cPS25M0LnZMEtnfM",
+                client_secret: "Uye8Hr3izkQ7JGgRTBW65XVq3sVX68jVqonIpkiQaive5AQFUKQlz12mTUz8EQt9RzealMnkzTbgPW8RZScWHVxWlNBqyrgZp0CRY5mJOb1YWkWeLvtXalBXnHVrDAKt",
                 grant_type: "password"
             };
 

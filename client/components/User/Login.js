@@ -66,8 +66,12 @@ const Login = () => {
             const data = {
                 username: user.username,
                 password: user.password,
-                client_id: "ltfXMk4dMHw5Nf4ftDx5Jpr49OoxH0rMJ9rCf8X3",
-                client_secret: "2GpfrO6XBVCiK5tdSFXWtmMXNPhOC1Q5VR5AcHeCDfoQPqUAJGEXe9hd1yytqMDtjhfjPLu0JyGOqTK40swSxG9FwivoHYRonxFNUV5ADqIihcirJQgHbpyXrZ74pmIJ",
+
+                // client_id: "ltfXMk4dMHw5Nf4ftDx5Jpr49OoxH0rMJ9rCf8X3",
+                // client_secret: "2GpfrO6XBVCiK5tdSFXWtmMXNPhOC1Q5VR5AcHeCDfoQPqUAJGEXe9hd1yytqMDtjhfjPLu0JyGOqTK40swSxG9FwivoHYRonxFNUV5ADqIihcirJQgHbpyXrZ74pmIJ",
+
+                client_id: "Cu3HL1ySqXavkOfzvqfAE827cPS25M0LnZMEtnfM",
+                client_secret: "Uye8Hr3izkQ7JGgRTBW65XVq3sVX68jVqonIpkiQaive5AQFUKQlz12mTUz8EQt9RzealMnkzTbgPW8RZScWHVxWlNBqyrgZp0CRY5mJOb1YWkWeLvtXalBXnHVrDAKt",
                 grant_type: "password"
             };
 

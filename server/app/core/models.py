@@ -464,3 +464,15 @@ class Message(models.Model):
         
     def __str__(self):
         return f"Message from {self.sender.email} at {self.timestamp}"
+    
+class FavoriteRoom(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='favorite_rooms')
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'room'] 
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.room.number} ({self.room.building.name})"

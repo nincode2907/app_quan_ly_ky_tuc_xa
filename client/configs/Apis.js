@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const BASE_URL = 'https://2f06-14-186-218-230.ngrok-free.app';
+
+// const BASE_URL = 'https://2f06-14-186-218-230.ngrok-free.app';
+
+const BASE_URL = 'https://ninpy.pythonanywhere.com';
 
 export const endpoints = {
     'login': '/o/token/',

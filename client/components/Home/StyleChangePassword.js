@@ -49,8 +49,31 @@ export default StyleSheet.create({
         color: '#fff',
         fontWeight: 'bold',
     },
+
     disabledButton: {
         opacity: 0.6,
         backgroundColor: '#ccc',
-    }
+    },
+
+    modalContainer: {
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 10,
+    },
+
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+
+    otpInfoRow: {
+        marginVertical: 10,
+        alignItems: 'center',
+    },
+
+    resendOtpText: {
+        color: 'blue',
+        textDecorationLine: 'underline',
+    },
 });

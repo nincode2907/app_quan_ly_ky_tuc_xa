@@ -146,7 +146,7 @@ const Rooms = () => {
             <View style={styles.filterBar}>
                 <Text style={styles.filterText}>Danh sách phòng</Text>
                 <View style={styles.iconBar}>
-                    <TouchableOpacity onPress={() => nav.navigate("roomsStatic")}>
+                    <TouchableOpacity onPress={() => nav.navigate("roomStatus")}>
                         <Ionicons name="hourglass-outline" size={20} color="#E3C7A5" />
                     </TouchableOpacity>
                 </View>

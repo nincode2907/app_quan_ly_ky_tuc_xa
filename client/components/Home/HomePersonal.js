@@ -1,40 +1,99 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Pressable } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MyDispatchContext } from '../../contexts/Contexts';
+import { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import StylePersonal from './StylePersonal';
 
 const HomePersonal = () => {
     const nav = useNavigation();
+    const route = useRoute();
+
     const [modalVisible, setModalVisible] = useState(false);
     const dispatch = useContext(MyDispatchContext);
+    const [userInfo, setUserInfo] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const userInfo = {
-        name: 'Nguyễn Văn A',
-        email: 'nguyenvana@ou.edu.vn',
-        pwd: '*********',
-        gender: 'Nam',
-        birthday: '20 tháng 8 năm 2003',
-        avatar: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744530660/a22aahwkjiwomfmvvmaj.png',
+    const getStudentInfo = async () => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            const res = await authApis(token).get(endpoints['studentInfo']);
+            const student = res.data;
+
+            setUserInfo({
+                name: student.full_name,
+                address: student.home_town,
+                email: student.user.email,
+                phone: student.user.phone,
+                pwd: '*********',
+                gender: student.gender === 'MALE' ? 'Nam' : (student.gender === 'FEMALE' ? 'Nữ' : 'Khác'),
+                birthday: student.date_of_birth,
+                avatar: student.user.avatar,
+                faculty: student.faculty.name,
+                student_id: student.student_id,
+                room: student.room,
+                is_blocked: student.is_blocked,
+            });
+        } catch (err) {
+            console.error("Lỗi khi lấy thông tin sinh viên:", err);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        getStudentInfo();
+    }, []);
+
+    useEffect(() => {
+        if (route.params?.newAvatar) {
+            setUserInfo(prev => ({ ...prev, avatar: route.params.newAvatar }));
+        }
+    }, [route.params?.newAvatar]);
 
     const handleNavigateToChangePersonal = () => {
-        nav.navigate("changePersonal", {
-            name: userInfo.name,
-            email: userInfo.email,
-            gender: userInfo.gender,
-            birthday: userInfo.birthday,
-        });
+        if (userInfo) {
+            nav.navigate("changePersonal", {
+                phone: userInfo.phone,
+                address: userInfo.address,
+                gender: userInfo.gender,
+                birthday: userInfo.birthday,
+                avatar: userInfo.avatar,
+                name: userInfo.name,
+                onUpdateAvatar: (newAvatar) => {
+                    setUserInfo(prev => ({ ...prev, avatar: newAvatar }));
+                    nav.navigate('Home', { newAvatar });
+                }
+            });
+        }
     };
+
 
     const logout = async () => {
         setModalVisible(false);
-        await AsyncStorage.removeItem('token'); 
+        await AsyncStorage.removeItem('token');
         dispatch({ type: "logout" });
         nav.navigate('login');
     };
+
+    if (loading) {
+        return (
+            <View style={StylePersonal.loadingContainer}>
+                <ActivityIndicator size="large" color="#0000ff" />
+            </View>
+        );
+    }
+
+    if (!userInfo) {
+        return (
+            <View style={StylePersonal.errorContainer}>
+                <Text style={StylePersonal.errorText}>Không thể tải thông tin tài khoản.</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={StylePersonal.container}>
@@ -60,9 +119,13 @@ const HomePersonal = () => {
 
                 <View style={StylePersonal.infoBox}>
                     <InfoRow label="Email trường:" value={userInfo.email} />
+                    <InfoRow label="Số điện thoại:" value={userInfo.phone} />
+                    <InfoRow label="Địa chỉ:" value={userInfo.address} />
                     <InfoRow label="Mật khẩu:" value={userInfo.pwd} />
                     <InfoRow label="Giới tính:" value={userInfo.gender} />
                     <InfoRow label="Ngày sinh:" value={userInfo.birthday} />
+                    <InfoRow label="Khoa:" value={userInfo.faculty} />
+                    <InfoRow label="Phòng:" value={userInfo.room} />
                 </View>
 
                 <View style={StylePersonal.button}>

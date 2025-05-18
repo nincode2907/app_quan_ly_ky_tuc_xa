@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, generics, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
 from .models import SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
@@ -24,6 +25,7 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
     queryset = Student.objects.none()
     serializer_class = serializers.StudentSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+    parser_classes = (MultiPartParser, FormParser)
     
     def get_queryset(self):
         if self.request.user.is_admin:
@@ -227,7 +229,7 @@ class RoomRequestViewSet(viewsets.ViewSet, generics.ListAPIView, generics.Retrie
                 'student__room__room_type',
                 'student__room__building__area',
                 'current_room__room_type',
-                'current_room__building__area'
+                'current_room__building__area',
                 'requested_room__room_type',
                 'requested_room__building__area').order_by('id')
         return RoomRequest.objects.filter(student__user=self.request.user).select_related('student__user')

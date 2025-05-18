@@ -4,13 +4,12 @@ export default StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#DEDEDE',
-        marginTop: 50,
     },
 
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between', // 👈 Giúp đẩy 2 icon ra sát 2 bên
+        justifyContent: 'space-between',
         backgroundColor: '#1E319D',
         paddingHorizontal: 15,
         height: 60,
@@ -87,7 +86,7 @@ export default StyleSheet.create({
     updateButton: {
         flexDirection: 'row',
         alignSelf: 'center',
-        marginTop: 180,
+        marginTop: 80,
         backgroundColor: '#FFF',
         paddingHorizontal: 32,
         paddingVertical: 12,

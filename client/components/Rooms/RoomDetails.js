@@ -10,7 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const RoomDetails = () => {
     const nav = useNavigation();
     const route = useRoute();
-    const { roomId } = route.params; 
+    const { roomId } = route.params;
 
     const { likedRooms, toggleLike } = useLikedRooms();
 
@@ -45,7 +45,7 @@ const RoomDetails = () => {
 
 
     useEffect(() => {
-        console.log('Room ID nhận được:', roomId);
+        // console.log('Room ID nhận được:', roomId);
         fetchRoomDetails();
     }, [roomId]);
 
@@ -75,7 +75,7 @@ const RoomDetails = () => {
 
                 <View style={StyleRoomDetails.infoContainer}>
                     <View style={StyleRoomDetails.headerRow}>
-                        <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - {room.building?.name}</Text>
+                        <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}</Text>
                         <TouchableOpacity onPress={handleToggleFavorite}>
                             <AntDesign
                                 name={isFavorite ? 'heart' : 'hearto'}
@@ -105,9 +105,16 @@ const RoomDetails = () => {
             </ScrollView>
 
             <View style={StyleRoomDetails.buttonContainer}>
-                <TouchableOpacity style={StyleRoomDetails.button} onPress={() => nav.navigate('roomRegister')}>
+                <TouchableOpacity
+                    style={StyleRoomDetails.button}
+                    onPress={() => nav.navigate('roomRegister', {
+                        roomId: room.id,
+                        roomNumber: room.number,
+                        buildingName: room.building?.name,
+                    })}
+                >
                     <Ionicons name="sync-outline" size={22} color="#E3C7A5" />
-                    <Text style={StyleRoomDetails.buttonText}>  Đăng ký đổi phòng</Text>
+                    <Text style={StyleRoomDetails.buttonText}>  Đăng ký phòng</Text>
                 </TouchableOpacity>
             </View>
         </View>

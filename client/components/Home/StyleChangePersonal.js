@@ -7,8 +7,33 @@ export default StyleSheet.create({
         padding: 20,
         justifyContent: 'flex-start',
     },
+    avatarContainer: {
+        alignItems: 'center',
+        backgroundColor: '#1E319D',
+        paddingVertical: 24,
+        borderRadius: 12,
+    },
+    avatar: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: '#FFF',
+    },
+    name: {
+        color: '#E3C7A5',
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginTop: 12,
+    },
+    divider: {
+        width: '50%',
+        height: 1,
+        backgroundColor: '#E3C7A5',
+        marginTop: 12,
+    },
     infoBox: {
-        marginBottom: 30,
+        marginTop: 20,
+        marginBottom: 20,
     },
     label: {
         fontSize: 16,
@@ -73,5 +98,8 @@ export default StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
     },
 });

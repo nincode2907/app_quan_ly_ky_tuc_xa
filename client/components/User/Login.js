@@ -66,20 +66,35 @@ const Login = () => {
             const data = {
                 username: user.username,
                 password: user.password,
-                client_id: "rsD5UP6UMNQ4YGXOkDnOEkOrwmj5aPhIB9e3ED9q",
-                client_secret: "uizunx3ammvJVASLgW6k27pjukNiOXX1pc563NHWyHaKMGWslz2Sqolc08u1ISdlOFgtXTjHiDq8KOPgKQCnxjy3z57cGLetVLwtjjXjGEBN4fA9eI5ulbVspgqlYtDJ",
+                client_id: "ltfXMk4dMHw5Nf4ftDx5Jpr49OoxH0rMJ9rCf8X3",
+                client_secret: "2GpfrO6XBVCiK5tdSFXWtmMXNPhOC1Q5VR5AcHeCDfoQPqUAJGEXe9hd1yytqMDtjhfjPLu0JyGOqTK40swSxG9FwivoHYRonxFNUV5ADqIihcirJQgHbpyXrZ74pmIJ",
                 grant_type: "password"
             };
 
-
+            // Login lấy token
             const res = await Apis.post(endpoints['login'], data, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            const token = res.data.access_token;
+            await AsyncStorage.setItem('token', token);
+
+            // API lấy thông tin user
+            const userRes = await Apis.get(endpoints['user_me'], {
                 headers: {
-                    'Content-Type': 'application/json'
+                    Authorization: `Bearer ${token}`
                 }
             });
 
-            await AsyncStorage.setItem('token', res.data.access_token);
-            nav.navigate("MainTabs");
+            const isFirstLogin = userRes.data.is_first_login;
+
+            // Điều hướng
+            if (isFirstLogin) {
+                nav.navigate("changePassword");
+            } else {
+                nav.navigate("MainTabs");
+            }
+
         } catch (ex) {
             console.error("Login error:", ex.response?.data || ex.message);
             setMsg("Sai thông tin đăng nhập hoặc lỗi máy chủ!");
@@ -87,8 +102,6 @@ const Login = () => {
             setLoading(false);
         }
     };
-
-
 
     return (
         <ScrollView>

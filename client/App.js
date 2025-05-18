@@ -23,7 +23,7 @@ import Register from './components/User/Register';
 import HomeCreen from "./components/HomeScreen/HomeScreen";
 import RoomDetails from './components/Rooms/RoomDetails';
 import RegisterChangeRoom from './components/Rooms/RegisterChangeRoom';
-import RoomsStatic from "./components/Rooms/RoomsStatic";
+import RoomsStatus from "./components/Rooms/RoomStatus";
 import ExtensionsPayBills from './components/PersonalPage/ExtensionsPayBills';
 import ExtensionsPayBillsDetails from './components/PersonalPage/ExtensionsPayBillsDetails';
 import ExtensionsFavouriteRoom from './components/PersonalPage/ExtensionsFavouriteRoom';
@@ -179,8 +179,8 @@ const StackNavigator = () => {
         }}
       />
       <Stack.Screen
-        name="roomsStatic"
-        component={RoomsStatic}
+        name="roomStatus"
+        component={RoomsStatus}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",

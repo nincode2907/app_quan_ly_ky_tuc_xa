@@ -226,6 +226,7 @@ INTERNAL_IPS = [
 ]
 
 MAX_VIOLATIONS = config('MAX_VIOLATIONS_BEFORE_BLOCK', default=8, cast=int)
+RATELIMIT_VIEW = 'yourapp.views.ratelimit_view'
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

@@ -24,6 +24,7 @@ router.register(r'favorite-rooms', views.FavoriteRoomViewSet)
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),
     path('user/change_password/', change_password, name='change_password'),
+    path('user/reset-password/', views.reset_password, name='reset_password'),
     path('request-otp/', views.request_otp, name='request_otp'),
     path('verify-otp/', views.verify_otp, name='verify_otp'),
     path('initiate-payment/', views.initiate_payment, name='initiate_payment'),

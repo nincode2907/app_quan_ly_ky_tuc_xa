@@ -7,4 +7,5 @@ templates = {
     "e_otp_change_password": "email/otp_change_password.html",
     "e_room_request_approved": "email/room_request_approved.html",
     "e_welcome": "email/welcome.html",
+    "e_reset_password": "email/reset_password.html"
 }

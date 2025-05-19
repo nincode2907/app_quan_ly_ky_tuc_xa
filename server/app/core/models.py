@@ -476,3 +476,4 @@ class FavoriteRoom(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} - {self.room.number} ({self.room.building.name})"
+    

@@ -18,11 +18,15 @@ def validate_image_extension(value):
         raise ValidationError('Chỉ chấp nhận file ảnh có đuôi .jpg, .jpeg, .png, hoặc .gif.')
     
 def generate_random_password(length=8):
+    safe_punctuation = string.punctuation.replace('\\', '')
+    safe_punctuation = safe_punctuation.replace('\'', '')
+    safe_punctuation = safe_punctuation.replace('\"', '')
+    
     characters = (
         string.ascii_lowercase +  # chữ thường
         string.ascii_uppercase +  # chữ hoa
         string.digits +           # số 0-9
-        string.punctuation        # ký tự đặc biệt
+        safe_punctuation          # ký tự đặc biệt
     )
     
     # Đảm bảo mật khẩu có ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
@@ -30,7 +34,7 @@ def generate_random_password(length=8):
         random.choice(string.ascii_lowercase),
         random.choice(string.ascii_uppercase),
         random.choice(string.digits),
-        random.choice(string.punctuation),
+        random.choice(safe_punctuation),
     ]
     
     # Sinh các ký tự còn lại

@@ -32,6 +32,13 @@ export default StyleSheet.create({
 
     },
 
+    reportItemType: {
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: 80
+    },
+
     reportText: {
         fontSize: 15,
     },

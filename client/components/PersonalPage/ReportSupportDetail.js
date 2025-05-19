@@ -1,73 +1,102 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { authApis, endpoints } from '../../configs/Apis';
 import styles from './StyleRepairSupportDetails';
 
 const ReportSupportDetail = () => {
     const nav = useNavigation();
+    const [loading, setLoading] = useState(true);
+    const [userInfo, setUserInfo] = useState(null);
 
     const [name, setName] = useState('');
     const [studentId, setStudentId] = useState('');
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
-
-    const [building, setBuilding] = useState('A');
     const [roomNumber, setRoomNumber] = useState('');
 
     const [selectedIssue, setSelectedIssue] = useState('');
-    const [customIssue, setCustomIssue] = useState('');
     const [description, setDescription] = useState('');
     const [startDate, setStartDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
-    const [repair, setRepair] = useState('Cao');
-    const [image, setImage] = useState(null);
 
-    const handleSubmit = () => {
-        if (!name || !studentId || !phone || !email || !roomNumber || (!selectedIssue && !customIssue)) {
-            Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin bắt buộc.');
+    const getStudentInfo = async () => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            const res = await authApis(token).get(endpoints['studentInfo']);
+            const student = res.data;
+
+            const info = {
+                name: student.full_name,
+                student_id: student.student_id,
+                phone: student.user.phone,
+                email: student.user.email,
+                room: student.room?.name || '',
+            };
+
+            setUserInfo(info);
+            setName(info.name);
+            setStudentId(info.student_id);
+            setPhone(info.phone);
+            setEmail(info.email);
+            setRoomNumber(info.room);
+        } catch (err) {
+            console.error("Lỗi khi lấy thông tin sinh viên:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        getStudentInfo();
+    }, []);
+
+    useEffect(() => {
+        if (userInfo) {
+            setName(userInfo.name || '');
+            setStudentId(userInfo.student_id || '');
+            setPhone(userInfo.phone || '');
+            setEmail(userInfo.email || '');
+            if (userInfo.room) {
+                setRoomNumber(userInfo.room.room_number || '');
+            }
+        }
+    }, [userInfo]);
+
+    const handleSubmit = async () => {
+        if (!selectedIssue || !description) {
+            Alert.alert('Lỗi', 'Vui lòng chọn loại yêu cầu và nhập mô tả.');
             return;
         }
 
-        const requestData = {
-            name,
-            studentId,
-            phone,
-            email,
-            building,
-            roomNumber,
-            issue: selectedIssue === 'other' ? customIssue : selectedIssue,
-            description,
-            startDate: startDate.toISOString(),
-            priority: repair,
-            image,
-        };
+        try {
+            const token = await AsyncStorage.getItem("token");
 
-        console.log('Form data:', requestData);
-        Alert.alert('Thành công', 'Thông tin đã được gửi!');
-        nav.goBack();
-    };
+            const requestData = {
+                request_type: selectedIssue,
+                description: description,
+            };
 
-    const pickImage = async () => {
-        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permissionResult.granted) {
-            Alert.alert("Quyền bị từ chối", "Bạn cần cho phép ứng dụng truy cập thư viện ảnh.");
-            return;
-        }
+            console.log("Gửi requestData:", requestData);
 
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: [ImagePicker.MediaType.IMAGE],
-            allowsEditing: true,
-            quality: 1,
-        });
+            await authApis(token).post(endpoints['supportRequest'], requestData);
 
-        if (!result.canceled && result.assets.length > 0) {
-            setImage(result.assets[0].uri);
+            Alert.alert('Thành công', 'Yêu cầu của bạn đã được gửi!');
+            nav.goBack();
+        } catch (error) {
+            console.error("Lỗi gửi yêu cầu:", error.response?.data || error.message);
+            Alert.alert('Lỗi', 'Không thể gửi yêu cầu. Vui lòng thử lại sau.');
         }
     };
+
+
+
+
+    if (loading) return <Text style={{ padding: 20 }}>Đang tải thông tin...</Text>;
 
     return (
         <ScrollView style={styles.container}>
@@ -94,17 +123,6 @@ const ReportSupportDetail = () => {
                     <Ionicons name="home" size={14} color="#fff" />
                 </View>
                 <View style={styles.sectionContent}>
-                    {/* <Text style={styles.text}>Tòa nhà:</Text>
-                    <View style={styles.radioGroup}>
-                        <TouchableOpacity style={styles.radioOption} onPress={() => setBuilding('A')}>
-                            <Ionicons name={building === 'A' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
-                            <Text style={styles.radioText}>Khu A</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.radioOption} onPress={() => setBuilding('B')}>
-                            <Ionicons name={building === 'B' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
-                            <Text style={styles.radioText}>Khu B</Text>
-                        </TouchableOpacity>
-                    </View> */}
                     <Text style={styles.text}>Số phòng:</Text>
                     <TextInput style={styles.input} value={roomNumber} onChangeText={setRoomNumber} />
                 </View>
@@ -121,27 +139,13 @@ const ReportSupportDetail = () => {
                         <Picker
                             selectedValue={selectedIssue}
                             onValueChange={(value) => setSelectedIssue(value)}
-                            style={[styles.picker, { color: '#000' }]}
+                            style={styles.picker}
                         >
-                            <Picker.Item label="─── Chọn dạng sự cố gặp phải ───" value="" enabled={false} />
-                            <Picker.Item label="Yêu cầu sửa chửa" value="repair" />
-                            <Picker.Item label="Phản ánh vấn đề" value="report" />
-                            {/* <Picker.Item label="Khóa cửa, thiết bị" value="lock" />
-                            <Picker.Item label="Khác" value="other" /> */}
+                            <Picker.Item label="─── Chọn dạng sự cố ───" value="" enabled={false} />
+                            <Picker.Item label="Yêu cầu sửa chữa" value="REPAIR" />
+                            <Picker.Item label="Phản ánh vấn đề" value="FEEDBACK" />
                         </Picker>
                     </View>
-
-                    {/* {selectedIssue === 'other' && (
-                        <>
-                            <Text>Khác:</Text>
-                            <TextInput
-                                style={styles.underlineInput}
-                                placeholder="Nhập loại sự cố khác"
-                                value={customIssue}
-                                onChangeText={setCustomIssue}
-                            />
-                        </>
-                    )} */}
                 </View>
             </View>
 
@@ -151,7 +155,7 @@ const ReportSupportDetail = () => {
                     <Ionicons name="calendar" size={14} color="#fff" />
                 </View>
                 <View style={styles.sectionContent}>
-                    <Text style={styles.text}>Mô tả chi tiết</Text>
+                    <Text style={styles.text}>Mô tả chi tiết:</Text>
                     <TextInput
                         style={[styles.input, { height: 80 }]}
                         value={description}
@@ -174,41 +178,8 @@ const ReportSupportDetail = () => {
                         }}
                         onCancel={() => setShowStartPicker(false)}
                     />
-                    {/* <Text style={styles.text}>Mức độ khẩn cấp:</Text>
-                    <View style={styles.radioGroupLevel}>
-                        <TouchableOpacity style={styles.radioOption} onPress={() => setRepair('Cao')}>
-                            <Ionicons name={repair === 'Cao' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
-                            <Text style={styles.radioText}>Khẩn cấp (Cần xử lý ngay)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.radioOption} onPress={() => setRepair('TB')}>
-                            <Ionicons name={repair === 'TB' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
-                            <Text style={styles.radioText}>Nghiêm trọng (Ảnh hưởng đến nhiều người)</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.radioOption} onPress={() => setRepair('Thap')}>
-                            <Ionicons name={repair === 'Thap' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
-                            <Text style={styles.radioText}>Bình thường (Có thể xử lý sau)</Text>
-                        </TouchableOpacity>
-                    </View> */}
                 </View>
             </View>
-
-            {/* <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Tải hình ảnh minh họa</Text>
-                    <Ionicons name="image" size={14} color="#fff" />
-                </View>
-                <View style={styles.sectionContent}>
-                    <Text style={styles.label}>Chọn ảnh để ban quản lý dễ kiểm tra hơn.</Text>
-                    <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
-                        <Ionicons name="image-outline" size={20} color="#ABABAB" />
-                        <Text style={styles.uploadText}>Chọn ảnh từ thư viện</Text>
-                    </TouchableOpacity>
-
-                    {image && (
-                        <Image source={{ uri: image }} style={styles.uploadedImage} />
-                    )}
-                </View>
-            </View> */}
 
             <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => nav.goBack()}>

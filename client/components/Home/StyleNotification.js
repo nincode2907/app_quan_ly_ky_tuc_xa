@@ -17,6 +17,7 @@ export default StyleSheet.create({
     },
     notificationIntroText: {
         fontSize: 16,
+        fontWeight: 'bold',
         flex: 1,
         flexWrap: "wrap",
     },

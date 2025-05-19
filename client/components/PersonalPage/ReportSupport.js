@@ -1,23 +1,45 @@
-import React, { useState } from "react";
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import styles from './StyleReportSupport';
 
-const ReportSupport = () => {
+import { authApis, endpoints } from '../../configs/Apis';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // để lấy token
 
-    const [selectedStatus, setSelectedStatus] = useState('unpaid');
+const ReportSupport = () => {
+    const [selectedStatus, setSelectedStatus] = useState('pending'); // 'pending' | 'approved' | 'rejected'
+    const [data, setData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
     const nav = useNavigation();
 
-    const processing = [
-        { id: '1', title: 'Quạt trần không sử dụng được', time: '30-04-2025', level: 'Cao' },
-        { id: '2', title: 'Cánh cửa tủ bị hư bản lề', time: '20-04-2025', level: 'Thấp' },
-    ];
 
-    const processed = [
-        { id: '3', title: 'Bàn học bị hư', time: '10-02-2025', level: 'Trung bình' }
-    ];
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const token = await AsyncStorage.getItem("token");
+            const res = await authApis(token).get(endpoints.supportRequest);
+            setData(res.data.results);
+            // console.log("Response data:", res.data);
+        } catch (err) {
+            console.error("Lỗi khi tải danh sách sự cố:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
 
     const getLevelColor = (level) => {
         switch (level) {
@@ -28,55 +50,95 @@ const ReportSupport = () => {
         }
     };
 
+    const formatDateTime = (isoString) => {
+        const date = new Date(isoString);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${hours}:${minutes} - ${day}/${month}/${year}`;
+    };
+
+
+    const STATUS = {
+        pending: 'PENDING',
+        approved: 'APPROVED',
+        rejected: 'REJECTED',
+    };
+    const filteredData = data.filter(item => item.status === STATUS[selectedStatus]);
+
+    const onRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchData();
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const renderReportItem = ({ item }) => (
         <TouchableOpacity>
             <View style={styles.reportItem}>
-                <MaterialCommunityIcons
-                    name="ticket-confirmation-outline"
-                    size={25}
-                    color={getLevelColor(item.level)}
-                />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.reportText}>{item.title}</Text>
-                    <Text style={styles.reportTime}>{item.time}</Text>
+                <View style={styles.reportItemType}>
+                    <MaterialCommunityIcons
+                        name="ticket-confirmation-outline"
+                        size={25}
+                        color={getLevelColor(item.priority)}
+                    />
+                    <Text style={styles.reportType}>{item.request_type}
+                    </Text>
+                </View>
+                <View style={{ flex: 1, marginLeft: 10, gap: 5 }}>
+                    <Text style={styles.reportText}>{item.description}</Text>
+                    <Text style={styles.reportTime}>{formatDateTime(item.created_at)}</Text>
                 </View>
             </View>
         </TouchableOpacity>
     );
 
+
     return (
         <View style={styles.container}>
             <View style={styles.chipContainer}>
                 <Chip
-                    icon="alert"
-                    selected={selectedStatus === 'unpaid'}
-                    onPress={() => setSelectedStatus('unpaid')}
-                    style={[
-                        styles.chip,
-                        selectedStatus === 'unpaid' && styles.chipSelected
-                    ]}
+                    icon="clock-outline"
+                    selected={selectedStatus === 'pending'}
+                    onPress={() => setSelectedStatus('pending')}
+                    style={[styles.chip, selectedStatus === 'pending' && styles.chipSelected]}
                 >
-                    Đang xử lý
+                    Đang chờ
                 </Chip>
                 <Chip
-                    icon="check"
-                    selected={selectedStatus === 'paid'}
-                    onPress={() => setSelectedStatus('paid')}
-                    style={[
-                        styles.chip,
-                        selectedStatus === 'paid' && styles.chipSelected
-                    ]}
+                    icon="check-circle-outline"
+                    selected={selectedStatus === 'approved'}
+                    onPress={() => setSelectedStatus('approved')}
+                    style={[styles.chip, selectedStatus === 'approved' && styles.chipSelected]}
                 >
-                    Đã xử lý
+                    Đã duyệt
+                </Chip>
+                <Chip
+                    icon="close-circle-outline"
+                    selected={selectedStatus === 'rejected'}
+                    onPress={() => setSelectedStatus('rejected')}
+                    style={[styles.chip, selectedStatus === 'rejected' && styles.chipSelected]}
+                >
+                    Đã từ chối
                 </Chip>
             </View>
 
-            <FlatList
-                data={selectedStatus === 'unpaid' ? processing : processed}
-                keyExtractor={(item) => item.id}
-                renderItem={renderReportItem}
-                style={styles.list}
-            />
+            {loading ? (
+                <ActivityIndicator size="large" color="#0000ff" style={{ marginTop: 20 }} />
+            ) : (
+                <FlatList
+                    data={filteredData}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={renderReportItem}
+                    style={styles.list}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                />
+            )}
 
             <TouchableOpacity
                 style={styles.supportButton}
@@ -87,4 +149,5 @@ const ReportSupport = () => {
         </View>
     );
 };
+
 export default ReportSupport;

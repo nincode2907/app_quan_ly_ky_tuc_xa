@@ -4,7 +4,7 @@ import { useRoute } from "@react-navigation/native";
 import StyleNotification from "./StyleNotification";
 import Apis, { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// import RenderHtml from 'react-native-render-html';
+import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 
 const HomeNotification = () => {
@@ -21,6 +21,7 @@ const HomeNotification = () => {
             const response = await authApis(token).get(`${endpoints.notifications}${notificationId}/`);
 
             const data = response.data.notification;
+            // console.log("Response data:", response.data);
 
             setNotification({
                 icon: data.notification_type,
@@ -57,7 +58,7 @@ const HomeNotification = () => {
             </View>
 
             <View style={StyleNotification.content}>
-                <Text style={StyleNotification.notificationTime}>{notification.content}</Text>
+                <RenderHtml contentWidth={width} source={{ html: notification.content }} />
             </View>
         </ScrollView>
     );

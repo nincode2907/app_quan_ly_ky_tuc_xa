@@ -13,11 +13,11 @@ const ExtensionsPayBills = () => {
     const [unpaidBills, setUnpaidBills] = useState([]);
     const [paidBills, setPaidBills] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchBills = async () => {
         try {
             const token = await AsyncStorage.getItem("token");
-            console.log("Token:", token);
             if (!token) {
                 console.warn("Token không tồn tại");
                 return;
@@ -58,6 +58,15 @@ const ExtensionsPayBills = () => {
     useEffect(() => {
         fetchBills(setUnpaidBills, setPaidBills, setLoading);
     }, []);
+
+    const onRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchBills();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
 
     const renderBillItem = ({ item }) => (
@@ -104,6 +113,8 @@ const ExtensionsPayBills = () => {
                         keyExtractor={(item) => item.id}
                         renderItem={renderBillItem}
                         style={styles.list}
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
                     />
                 )
             )}

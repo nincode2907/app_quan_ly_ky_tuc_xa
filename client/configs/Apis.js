@@ -25,6 +25,7 @@
         'paymentTransactions': '/api/payment-transactions/',
         'paymenMethods/': '/api/payment-methods/',
         'initiatePayment': '/api/payment/initiate-payment/',
+        'supportRequest': '/api/support-requests/',
 
     };
 

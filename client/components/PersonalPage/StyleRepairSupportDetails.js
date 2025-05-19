@@ -32,6 +32,7 @@ export default StyleSheet.create({
     },
     text: {
         fontSize: 15,
+        fontWeight: 'bold'
     },
     radioGroup: {
         flexDirection: 'row',

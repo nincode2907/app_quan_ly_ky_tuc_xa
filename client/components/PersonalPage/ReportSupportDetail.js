@@ -94,7 +94,7 @@ const ReportSupportDetail = () => {
                     <Ionicons name="home" size={14} color="#fff" />
                 </View>
                 <View style={styles.sectionContent}>
-                    <Text style={styles.text}>Tòa nhà:</Text>
+                    {/* <Text style={styles.text}>Tòa nhà:</Text>
                     <View style={styles.radioGroup}>
                         <TouchableOpacity style={styles.radioOption} onPress={() => setBuilding('A')}>
                             <Ionicons name={building === 'A' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
@@ -104,7 +104,7 @@ const ReportSupportDetail = () => {
                             <Ionicons name={building === 'B' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
                             <Text style={styles.radioText}>Khu B</Text>
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
                     <Text style={styles.text}>Số phòng:</Text>
                     <TextInput style={styles.input} value={roomNumber} onChangeText={setRoomNumber} />
                 </View>
@@ -112,7 +112,7 @@ const ReportSupportDetail = () => {
 
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Danh sách sự cố</Text>
+                    <Text style={styles.sectionTitle}>Dạng sự cố</Text>
                     <Ionicons name="construct" size={14} color="#fff" />
                 </View>
                 <View style={styles.sectionContent}>
@@ -123,15 +123,15 @@ const ReportSupportDetail = () => {
                             onValueChange={(value) => setSelectedIssue(value)}
                             style={[styles.picker, { color: '#000' }]}
                         >
-                            <Picker.Item label="─── Chọn sự cố ───" value="" enabled={false} />
-                            <Picker.Item label="Sự cố nước" value="water" />
-                            <Picker.Item label="Sự cố điện" value="electricity" />
-                            <Picker.Item label="Khóa cửa, thiết bị" value="lock" />
-                            <Picker.Item label="Khác" value="other" />
+                            <Picker.Item label="─── Chọn dạng sự cố gặp phải ───" value="" enabled={false} />
+                            <Picker.Item label="Yêu cầu sửa chửa" value="repair" />
+                            <Picker.Item label="Phản ánh vấn đề" value="report" />
+                            {/* <Picker.Item label="Khóa cửa, thiết bị" value="lock" />
+                            <Picker.Item label="Khác" value="other" /> */}
                         </Picker>
                     </View>
 
-                    {selectedIssue === 'other' && (
+                    {/* {selectedIssue === 'other' && (
                         <>
                             <Text>Khác:</Text>
                             <TextInput
@@ -141,7 +141,7 @@ const ReportSupportDetail = () => {
                                 onChangeText={setCustomIssue}
                             />
                         </>
-                    )}
+                    )} */}
                 </View>
             </View>
 
@@ -174,7 +174,7 @@ const ReportSupportDetail = () => {
                         }}
                         onCancel={() => setShowStartPicker(false)}
                     />
-                    <Text style={styles.text}>Mức độ khẩn cấp:</Text>
+                    {/* <Text style={styles.text}>Mức độ khẩn cấp:</Text>
                     <View style={styles.radioGroupLevel}>
                         <TouchableOpacity style={styles.radioOption} onPress={() => setRepair('Cao')}>
                             <Ionicons name={repair === 'Cao' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
@@ -188,11 +188,11 @@ const ReportSupportDetail = () => {
                             <Ionicons name={repair === 'Thap' ? 'radio-button-on' : 'radio-button-off'} size={20} color="#007AFF" />
                             <Text style={styles.radioText}>Bình thường (Có thể xử lý sau)</Text>
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
                 </View>
             </View>
 
-            <View style={styles.section}>
+            {/* <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Tải hình ảnh minh họa</Text>
                     <Ionicons name="image" size={14} color="#fff" />
@@ -208,7 +208,7 @@ const ReportSupportDetail = () => {
                         <Image source={{ uri: image }} style={styles.uploadedImage} />
                     )}
                 </View>
-            </View>
+            </View> */}
 
             <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => nav.goBack()}>

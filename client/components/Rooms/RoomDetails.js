@@ -1,26 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useLikedRooms } from '../../contexts/LikedRoomsContext';
 import StyleRoomDetails from './StyleRoomDetails';
-import { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { toggleFavoriteRoom } from '../../configs/RoomApi'; 
 
 const RoomDetails = () => {
     const nav = useNavigation();
     const route = useRoute();
     const { roomId } = route.params;
 
-    const { likedRooms, toggleLike } = useLikedRooms();
-
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const isFavorite = room && likedRooms[room.id] !== undefined;
+    const handleToggleFavorite = async () => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            if (!token || !room) return;
 
-    const handleToggleFavorite = () => {
-        if (room) toggleLike(room);
+            const data = await toggleFavoriteRoom(room.id, token);
+            if (data && typeof data.is_favorite === "boolean") {
+                setRoom(prev => ({
+                    ...prev,
+                    is_favorite: data.is_favorite
+                }));
+            }
+        } catch (error) {
+            console.error("Lỗi khi toggle favorite:", error);
+            Alert.alert("Lỗi", "Không thể thay đổi trạng thái yêu thích. Vui lòng thử lại.");
+        }
     };
 
     const fetchRoomDetails = async () => {
@@ -43,9 +52,7 @@ const RoomDetails = () => {
         }
     };
 
-
     useEffect(() => {
-        // console.log('Room ID nhận được:', roomId);
         fetchRoomDetails();
     }, [roomId]);
 
@@ -78,9 +85,9 @@ const RoomDetails = () => {
                         <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}</Text>
                         <TouchableOpacity onPress={handleToggleFavorite}>
                             <AntDesign
-                                name={isFavorite ? 'heart' : 'hearto'}
+                                name={room.is_favorite ? 'heart' : 'hearto'}
                                 size={24}
-                                color={isFavorite ? 'red' : '#B0B0B0'}
+                                color={room.is_favorite ? 'red' : '#B0B0B0'}
                             />
                         </TouchableOpacity>
                     </View>

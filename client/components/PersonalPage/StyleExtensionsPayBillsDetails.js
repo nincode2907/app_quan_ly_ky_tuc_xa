@@ -151,6 +151,19 @@ export default StyleSheet.create({
         fontWeight: 'bold',
     },
 
+    pay: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 5,
+    },
+
+    payIcon: {
+        width: 30,
+        height: 30,
+        resizeMode: 'contain',
+    },
+
     payButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -183,7 +196,7 @@ export default StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    
+
     dialog: {
         width: '90%',
         backgroundColor: '#fff',
@@ -191,33 +204,33 @@ export default StyleSheet.create({
         padding: 20,
         alignItems: 'center',
     },
-    
+
     dialogTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 15,
     },
-    
+
     dialogContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-around', 
+        justifyContent: 'space-around',
         alignItems: 'center',
         width: '100%',
     },
-    
+
     dialogOption: {
         alignItems: 'center',
         justifyContent: 'center',
-        width: 80,  
+        width: 80,
         height: 80,
     },
-    
+
     paymentIcon: {
         width: 70,
         height: 70,
         resizeMode: 'contain',
     },
-    
+
     dialogOptionText: {
         fontSize: 16,
         color: '#333',

@@ -59,8 +59,6 @@ const ChangePersonal = ({ route, navigation }) => {
             formData.append("gender", genderValue);
             formData.append("home_town", newAddress);
             formData.append("date_of_birth", newBirthday);
-            formData.append("name", newName);
-            formData.append("email", newEmail);
             formData.append("student_id", "SV00001");
 
             if (newAvatar && !newAvatar.startsWith("http")) {

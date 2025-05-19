@@ -1,16 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, FlatList, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useLikedRooms } from '../../contexts/LikedRoomsContext';
 import { useSearchContext } from '../../contexts/SearchContext';
-import styles from './Style';
-import { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authApis, endpoints } from '../../configs/Apis';
+import { toggleFavoriteRoom } from '../../configs/RoomApi';
+import styles from './Style';
 
 const Rooms = () => {
     const nav = useNavigation();
-    const { likedRooms, toggleLike } = useLikedRooms();
     const { searchText, setSearchText } = useSearchContext();
 
     const [debouncedSearchText, setDebouncedSearchText] = useState(searchText);
@@ -31,21 +30,24 @@ const Rooms = () => {
 
     const fetchRooms = useCallback(async (targetPage = 1, search = '', append = false) => {
         if (loading) return;
+        setLoading(true);
 
         try {
-            setLoading(true);
             const token = await AsyncStorage.getItem("token");
+            if (!token) throw new Error("Token không tồn tại!");
+
             let url = `${endpoints.rooms}?page=${targetPage}`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
-            const res = await authApis(token).get(url);
 
+            const res = await authApis(token).get(url);
             const fetched = res.data.results.map(room => ({
                 id: room.id.toString(),
                 name: `Phòng ${room.number} ${room.building.area.name} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
                 price: `${room.room_type.price.toLocaleString()}₫/tháng`,
-                image: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744606423/jpcya6itafrlh7inth29.jpg',
+                image: room.image || 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744606423/jpcya6itafrlh7inth29.jpg',
                 people: `${room.room_type.capacity - room.available_slots}/${room.room_type.capacity} người`,
                 time: '1 giờ trước',
+                is_favorite: room.is_favorite,
             }));
 
             if (append) {
@@ -56,28 +58,25 @@ const Rooms = () => {
 
             setHasMore(res.data.next !== null);
         } catch (err) {
-            console.error("Lỗi khi tải phòng:", err);
+            console.error("Lỗi khi tải danh sách phòng:", err);
+            Alert.alert("Lỗi", "Không thể tải danh sách phòng. Vui lòng thử lại.");
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
     }, [loading]);
 
-    // Load rooms 
+    // Fetch khi thay đổi nội dung tìm kiếm
     useEffect(() => {
         fetchRooms(1, debouncedSearchText, false);
     }, [debouncedSearchText]);
 
+    // Fetch khi lướt đến trang mới
     useEffect(() => {
         if (page > 1) {
             fetchRooms(page, debouncedSearchText, true);
         }
     }, [page]);
-
-    const onPressSearch = () => {
-        setPage(1);
-        setDebouncedSearchText(searchText.trim());
-    };
 
     const handleLoadMore = () => {
         if (!loading && hasMore) {
@@ -91,6 +90,11 @@ const Rooms = () => {
         fetchRooms(1, debouncedSearchText, false);
     };
 
+    const onPressSearch = () => {
+        setPage(1);
+        setDebouncedSearchText(searchText.trim());
+    };
+
     useFocusEffect(
         useCallback(() => {
             return () => {
@@ -98,6 +102,24 @@ const Rooms = () => {
             };
         }, [setSearchText])
     );
+
+    const toggleFavorite = async (roomId) => {
+        try {
+            const token = await AsyncStorage.getItem("token");
+            if (!token) throw new Error("Token không tồn tại!");
+
+            const data = await toggleFavoriteRoom(roomId, token);
+            if (data.success !== undefined) {
+                const updated = rooms.map(r =>
+                    r.id === roomId.toString() ? { ...r, is_favorite: data.is_favorite } : r
+                );
+                setRooms(updated);
+            }
+        } catch (err) {
+            console.error("Lỗi khi thay đổi trạng thái yêu thích:", err);
+            Alert.alert("Lỗi", "Không thể cập nhật trạng thái yêu thích.");
+        }
+    };
 
     const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
@@ -112,8 +134,8 @@ const Rooms = () => {
                             <AntDesign
                                 name="heart"
                                 size={16}
-                                color={likedRooms[item.id] ? 'red' : '#ccc'}
-                                onPress={() => toggleLike(item)}
+                                color={item.is_favorite ? 'red' : '#ccc'}
+                                onPress={() => toggleFavorite(item.id)}
                             />
                             <Text style={styles.peopleText}>{item.people}</Text>
                         </View>

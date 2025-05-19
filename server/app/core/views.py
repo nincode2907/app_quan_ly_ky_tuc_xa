@@ -18,8 +18,12 @@ from django.shortcuts import get_object_or_404
 import re
 from django.contrib.auth.models import AnonymousUser
 from .services.payment import PaymentService
+from core.services.send_email import EmailService
+from django_ratelimit.decorators import ratelimit
+from oauth2_provider.models import AccessToken, RefreshToken
 
 # Create your views here.
+    
 class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Student.objects.none()
     serializer_class = serializers.StudentSerializer
@@ -495,20 +499,45 @@ def change_password(request):
     user.save()
     return Response({"message": "Đổi mật khẩu thành công."}, status=status.HTTP_200_OK)
 
+# /api/user/reset-password/
+@api_view(['POST'])
+@permission_classes([])
+def reset_password(request):
+    email = request.data.get('email')
+    otp = request.data.get('otp')
+    
+    if not email or not otp:
+        return Response({"error": "Vui lòng cung cấp email và mã OTP."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Kiểm tra OTP lần nữa
+        if not OTPService.verify_otp(otp, email=email):
+            return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        EmailService.send_new_password(email)
+        response_data = {"message": "Mật khẩu mới đã được gửi đến email của bạn."}
+        if request.user.is_authenticated:
+            # Xóa tất cả token OAuth2 của user
+            AccessToken.objects.filter(user=request.user).delete()
+            RefreshToken.objects.filter(user=request.user).delete()
+            response_data["message"] = "Mật khẩu đã được đặt lại, vui lòng đăng nhập lại."
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+            
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # /api/user/request-otp/
 @api_view(['POST'])
 @permission_classes([])
+# @ratelimit(key='ip', rate='5/m', method='POST')
 def request_otp(request):
-    user = request.user
     try:
-        if isinstance(user, AnonymousUser):
-            email = request.data.get('email')
-            if not email:
-                return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
-            OTPService.create_and_send_otp(email = email)
-        else:
-            OTPService.create_and_send_otp(user = user)
-            
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
+        OTPService.create_and_send_otp(email=email)
+
         return Response({"message": "Mã OTP đã được gửi đến email của bạn."}, status=status.HTTP_200_OK)
     
     except Exception as e:
@@ -518,23 +547,18 @@ def request_otp(request):
 @api_view(['POST'])
 @permission_classes([])
 def verify_otp(request):
-    user = request.user
     otp = request.data.get('otp')
     if not otp:
         return Response({"error": "Vui lòng cung cấp mã OTP."}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        if isinstance(user, AnonymousUser):
-            email = request.data.get('email')
-            if not email:
-                return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            if OTPService.verify_otp(otp, email = email) == False:
-                return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        elif OTPService.verify_otp(otp, user = user) == False:
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Thông tin không đầy đủ."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if OTPService.verify_otp(otp, email=email) == False:
             return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         return Response({"message": "Mã OTP hợp lệ."}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

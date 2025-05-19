@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Styles from './Style';
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
@@ -7,6 +8,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Home = () => {
     const nav = useNavigation();
+    const route = useRoute();
+    const [avatar, setAvatar] = useState("https://res.cloudinary.com/dywyrpfw7/image/upload/v1744530660/a22aahwkjiwomfmvvmaj.png");
+
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
@@ -31,10 +35,10 @@ const Home = () => {
                 }));
 
                 setNotifications(prev => [...prev, ...newNotifications]);
-                setHasMore(res.data.next !== null); 
-                setPage(prev => prev + 1); 
+                setHasMore(res.data.next !== null);
+                setPage(prev => prev + 1);
             } else {
-                setHasMore(false); 
+                setHasMore(false);
             }
         } catch (error) {
             console.error("Lỗi khi tải thông báo:", error);
@@ -44,8 +48,18 @@ const Home = () => {
     }, [loading, hasMore, page]);
 
     useEffect(() => {
-        fetchNotifications(); 
+        fetchNotifications();
     }, [fetchNotifications]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (route.params?.newAvatar) {
+                setAvatar(route.params.newAvatar);
+                // Xóa param sau khi lấy để tránh set lại nhiều lần
+                nav.setParams({ newAvatar: undefined });
+            }
+        }, [route.params?.newAvatar])
+    );
 
     // Hàm xử lý cuộn để tải thêm thông báo
     const handleScroll = ({ nativeEvent }) => {
@@ -58,7 +72,7 @@ const Home = () => {
 
 
     const handlePress = (notificationId) => {
-        nav.navigate('homenotification', { notificationId }); 
+        nav.navigate('homenotification', { notificationId });
     };
 
     return (
@@ -74,7 +88,7 @@ const Home = () => {
             <View style={Styles.searchBar}>
                 <TouchableOpacity onPress={() => nav.navigate("homepersonal")}>
                     <Image
-                        source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1744530660/a22aahwkjiwomfmvvmaj.png" }}
+                        source={{ uri: avatar }}
                         style={Styles.avatar}
                     />
                 </TouchableOpacity>
@@ -107,12 +121,12 @@ const Home = () => {
                 {notifications.map((item, index) => (
                     <TouchableOpacity
                         key={item.id || index}
-                        onPress={() => handlePress(item.id)} 
+                        onPress={() => handlePress(item.id)}
                     >
                         <View style={Styles.notificationItem}>
                             <View style={Styles.notificationItem}>
                                 <Text style={Styles.notificationIcon}>
-                                    {item.icon === "URGENT" ? "⚠️" : "🔔"} 
+                                    {item.icon === "URGENT" ? "⚠️" : "🔔"}
                                 </Text>
                             </View>
 
@@ -132,7 +146,7 @@ const Home = () => {
                     </TouchableOpacity>
                 ))}
 
-                {loading && <ActivityIndicator size="large" color="#0000ff" />} 
+                {loading && <ActivityIndicator size="large" color="#0000ff" />}
             </ScrollView>
         </View>
     );

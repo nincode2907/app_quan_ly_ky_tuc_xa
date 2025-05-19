@@ -40,5 +40,7 @@ export default StyleSheet.create({
         borderColor: '#1E319D',
         borderWidth: 1,
     },
-
+    subText: {
+        color: '#ABABAB'
+    }
 });

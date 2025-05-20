@@ -22,6 +22,9 @@ from .services.payment import PaymentService
 from core.services.send_email import EmailService
 from django_ratelimit.decorators import ratelimit
 from oauth2_provider.models import AccessToken, RefreshToken
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from cloudinary.uploader import upload
 
 # Create your views here.
     
@@ -35,7 +38,10 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         if self.request.user.is_admin:
             return Student.objects.all().select_related('user', 'faculty', 'room__room_type', 'room__building__area').order_by('id')
         return Student.objects.filter(user=self.request.user).select_related('user')
-    
+    @swagger_auto_schema(
+        operation_description="Get current student's information.",
+        responses={200: serializers.StudentSerializer, 400: openapi.Response('Error')}
+    )
     @action(detail=False, methods=['get'], url_path='me')
     def get_student_info(self, request):
         try:
@@ -46,6 +52,10 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         serializer = serializers.StudentSerializer(student)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+    @swagger_auto_schema(
+        method='post',
+        auto_schema=None
+    )
     @action(detail=False, methods=['POST'], url_path='update-profile')
     def update_profile(self, request):
         user = request.user
@@ -54,16 +64,24 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         except Student.DoesNotExist:
             return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
         
-        user_data = {
-        'phone': request.data.get('phone'),
-        'avatar': request.data.get('avatar')
-        }
-        student_data = {
-            'gender': request.data.get('gender'),
-            'home_town': request.data.get('home_town'),
-            'date_of_birth': request.data.get('date_of_birth'),
-            'student_id': request.data.get('student_id')
-        }
+        user_data = {}
+        if 'phone' in request.data:
+            user_data['phone'] = request.data.get('phone')
+            
+        avatar_file = request.data.get('avatar')
+        if avatar_file:
+            try:
+                # Upload to Cloudinary if new avatar is provided
+                upload_result = upload(avatar_file)
+                print(upload_result['public_id'])
+                user_data['avatar'] = upload_result['public_id']  # Use secure URL from Cloudinary
+            except Exception as e:
+                return Response({"error": f"Upload avatar failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        student_data = {}
+        for field in ['home_town', 'date_of_birth', 'student_id', 'full_name']:
+            if field in request.data:
+                student_data[field] = request.data.get(field)
         
         user_serializer = serializers.UserSerializer(request.user, data=user_data, partial=True)
         student_serializer = serializers.StudentSerializer(student, data=student_data, partial=True)
@@ -74,7 +92,8 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
             return Response({
                 "message": "Cập nhật hồ sơ thành công.",
                 "user": user_serializer.data,
-                "student": student_serializer.data
+                "student": student_serializer.data,
+                "avatar_url": user_serializer.data.get('avatar')
             }, status=status.HTTP_200_OK)
         else:
             errors = {**user_serializer.errors, **student_serializer.errors}
@@ -346,12 +365,25 @@ class UserNotificationsViewSet(viewsets.ViewSet, generics.ListAPIView, generics.
                 'student__room__building__area').order_by('id')
         return UserNotification.objects.filter(student__user=self.request.user).select_related('student__user')
     
-    # API đánh dấu thông báo đã đọc
+    @swagger_auto_schema(
+        operation_description="Mark a notification as read.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'notification_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+            },
+            required=['notification_id']
+        ),
+        responses={200: openapi.Response('Success'), 400: openapi.Response('Error'), 404: openapi.Response('Not Found')}
+    )
     @action(detail=False, methods=['post'], url_path='mark-read')
     def mark_notification_read(self, request):
         notification_id = request.data.get('notification_id')
         if not notification_id:
             return Response({"error": "Thiếu thông tin."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if request.user.is_admin:
+            return Response({"error": "Chỉ sinh viên mới có thể đánh dấu thông báo là đã đọc."}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             user_notification = UserNotification.objects.get(student__user=request.user, id=notification_id)
@@ -419,57 +451,21 @@ class PaymentTransactionViewSet(viewsets.ViewSet, generics.ListAPIView, generics
                 'bill__student__room__building__area').order_by('id')
         return PaymentTransaction.objects.filter(bill__student__user=self.request.user).select_related('bill__student__user')
     
-class FavoriteRoomViewSet(viewsets.ViewSet, generics.CreateAPIView, generics.DestroyAPIView):
-    queryset = FavoriteRoom.objects.none()
-    serializer_class = serializers.FavoriteRoomSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
-
-    # def get_queryset(self):
-    #     try:
-    #         student = self.request.user.students
-    #     except Student.DoesNotExist:
-    #         raise ValidationError("Không tìm thấy thông tin sinh viên.")
-    #     return FavoriteRoom.objects.filter(student=student).select_related('room__building__area', 'room__room_type').order_by('-created_at')
-
-    def create(self, request):
-        try:
-            student = request.user.students
-        except Student.DoesNotExist:
-            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
-
-        room_id = request.data.get('room_id')
-        try:
-            room = Room.objects.get(id=room_id)
-        except Room.DoesNotExist:
-            return Response({"error": "Phòng không tồn tại."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if room.building.gender != student.gender:
-            return Response({"error": "Phòng không phù hợp với giới tính của bạn."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if FavoriteRoom.objects.filter(student=student, room=room).exists():
-            return Response({"error": "Phòng đã có trong danh sách yêu thích."}, status=status.HTTP_400_BAD_REQUEST)
-
-        favorite_room = FavoriteRoom.objects.create(student=student, room=room)
-        serializer = self.get_serializer(favorite_room)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=['delete'], url_path='remove')
-    def remove_favorite(self, request, pk=None):
-        try:
-            student = request.user.students
-        except Student.DoesNotExist:
-            return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            favorite_room = FavoriteRoom.objects.get(id=pk, student=student)
-        except FavoriteRoom.DoesNotExist:
-            return Response({"error": "Phòng không có trong danh sách yêu thích."}, status=status.HTTP_404_NOT_FOUND)
-
-        favorite_room.delete()
-        return Response({"message": "Đã xóa phòng khỏi danh sách yêu thích."}, status=status.HTTP_200_OK)
-    
 # account
 # /api/user/change_password/
+@swagger_auto_schema(
+    method='post',
+    operation_description="Change user password.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'old_password': openapi.Schema(type=openapi.TYPE_STRING),
+            'new_password': openapi.Schema(type=openapi.TYPE_STRING),
+        },
+        required=['new_password']
+    ),
+    responses={200: openapi.Response('Success'), 400: openapi.Response('Error')}
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, IsAdminOrSelf])
 def change_password(request):
@@ -530,10 +526,44 @@ def reset_password(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # /api/user/request-otp/
+api_key_param = openapi.Parameter(
+    'x-api-key',
+    openapi.IN_HEADER,
+    description="API Key để xác thực request",
+    type=openapi.TYPE_STRING,
+    required=True
+)
+
+@swagger_auto_schema(
+    method='post',
+    manual_parameters=[api_key_param],
+    operation_description="Gửi mã OTP tới email để đặt lại mật khẩu.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email'],
+        properties={
+            'email': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                format='email',
+                description="Địa chỉ email"
+            ),
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Thành công - OTP đã gửi"),
+        400: openapi.Response(description="Thiếu dữ liệu"),
+        401: openapi.Response(description="API Key sai hoặc thiếu"),
+        500: openapi.Response(description="Lỗi máy chủ")
+    }
+)
 @api_view(['POST'])
 @permission_classes([])
 # @ratelimit(key='ip', rate='5/m', method='POST')
 def request_otp(request):
+    api_key = request.headers.get('x-api-key')
+    if api_key != settings.API_KEY:
+        return Response({"error": "Invalid API Key."}, status=status.HTTP_401_UNAUTHORIZED)
+    
     try:
         email = request.data.get('email')
         if not email:
@@ -546,9 +576,32 @@ def request_otp(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 # /api/user/verify-otp/
+@swagger_auto_schema(
+    method='post',
+    manual_parameters=[api_key_param],
+    operation_description="Kiểm tra tính hợp lệ của mã OTP đã được gửi tới email.",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['email', 'otp'],
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING, format='email', description="Địa chỉ email nhận OTP"),
+            'otp': openapi.Schema(type=openapi.TYPE_STRING, description="Mã OTP cần xác minh"),
+        }
+    ),
+    responses={
+        200: openapi.Response(description="Mã OTP hợp lệ"),
+        400: openapi.Response(description="Dữ liệu không hợp lệ hoặc OTP sai"),
+        401: openapi.Response(description="API Key không hợp lệ"),
+        500: openapi.Response(description="Lỗi hệ thống")
+    }
+)
 @api_view(['POST'])
 @permission_classes([])
 def verify_otp(request):
+    api_key = request.headers.get('x-api-key')
+    if api_key != settings.API_KEY:
+        return Response({"error": "Invalid API Key."}, status=status.HTTP_401_UNAUTHORIZED)
+    
     otp = request.data.get('otp')
     if not otp:
         return Response({"error": "Vui lòng cung cấp mã OTP."}, status=status.HTTP_400_BAD_REQUEST)
@@ -578,6 +631,10 @@ def user_me(request):
     }, status=status.HTTP_200_OK)
     
 # /api/payment/initiate-payment/
+@swagger_auto_schema(
+    method='post',
+    auto_schema=None
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, IsAdminOrSelf])
 def initiate_payment(request):
@@ -595,6 +652,10 @@ def initiate_payment(request):
         return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
 @csrf_exempt
+@swagger_auto_schema(
+    method='get',
+    auto_schema=None
+)
 @api_view(['GET'])
 @permission_classes([])
 def payment_return(request):

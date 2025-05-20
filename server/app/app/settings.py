@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'ckeditor',
     'ckeditor_uploader',
     'channels',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -104,6 +105,24 @@ CHANNEL_LAYERS = {
             'hosts': [('127.0.0.1', 6379)],  # Redis server
         },
     },
+}
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'OAuth2': {
+            'type': 'oauth2',
+            'flow': 'accessCode',
+            'authorizationUrl': '/o/authorize/',
+            'tokenUrl': '/o/token/',
+            'scopes': {
+                'read': 'Read scope',
+                'write': 'Write scope',
+            },
+        },
+    },
+    'DEFAULT_INFO': 'core.swagger.swagger_info',
+    'USE_SESSION_AUTH': False,
+    'PERSIST_AUTH': True,
 }
 
 REST_FRAMEWORK = {
@@ -220,6 +239,9 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
 # setting payment momo url
 SANDBOX_REDIRECT_URL="https://" + ALLOWED_HOSTS[0] + "/api/payment_success/"
 SANDBOX_IPN_URL="https://" + ALLOWED_HOSTS[0] + "/api/momo_notify/"
+
+# API KEY
+API_KEY = config('API_KEY')
 
 INTERNAL_IPS = [
     '127.0.0.1',

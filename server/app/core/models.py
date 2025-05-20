@@ -43,7 +43,7 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
-    avatar = CloudinaryField('image', folder='users', blank=True, null=True)
+    avatar = CloudinaryField(blank=True, null=True)
     is_admin = models.BooleanField(default=False)
     is_first_login = models.BooleanField(default=True)
 
@@ -68,7 +68,7 @@ class Student(models.Model):
     home_town = models.CharField(max_length=255)
     date_of_birth = models.DateField(null=True, blank=True)
     course = models.CharField(max_length=10, blank=True)
-    student_id = models.CharField(max_length=10, unique=True)
+    student_id = models.CharField(max_length=10)
     room = models.ForeignKey('Room', on_delete=models.SET_NULL, blank=True, null=True)
     violation_count = models.IntegerField(default=0)
     is_blocked = models.BooleanField(default=False)
@@ -241,7 +241,7 @@ class QRCode(models.Model):
     qr_token = models.CharField(max_length=36, unique=True, default=uuid.uuid4)
     date = models.DateField(default=timezone.now)
     is_used = models.BooleanField(default=False)
-    image_url = CloudinaryField('image', folder='qrcodes', blank=True, null=True)
+    image_url = CloudinaryField(blank=True, null=True)
     
     def save(self, *args, **kwargs):
         if not self.image_url: 
@@ -336,7 +336,7 @@ class Notification(models.Model):
     target_building = models.ForeignKey(Building, on_delete=models.CASCADE, blank=True, null=True)
     target_room = models.ForeignKey(Room, on_delete=models.CASCADE, blank=True, null=True)
     target_student = models.ForeignKey(Student, on_delete=models.CASCADE, blank=True, null=True)
-    attachment = CloudinaryField('file', blank=True, null=True, resource_type='raw')
+    attachment = CloudinaryField(blank=True, null=True, resource_type='raw')
     created_at = models.DateTimeField(auto_now_add=True)
     
     def clean(self):
@@ -421,7 +421,7 @@ class OTP(models.Model):
         
 class PaymentMethod(models.Model):
     name = models.CharField(max_length=255, null=False, unique=True)
-    image = CloudinaryField('image', folder='payments', blank=True, null=True)
+    image = CloudinaryField(blank=True, null=True)
 
     def __str__(self):
         return self.name

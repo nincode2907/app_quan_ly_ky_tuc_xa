@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from core import models
+import cloudinary.uploader
 
 class FacultySerializer(serializers.ModelSerializer):
     class Meta:
@@ -42,9 +43,16 @@ class RoomRequestSerializer(serializers.ModelSerializer):
         fields = ['id', 'student', 'current_room', 'requested_room', 'reason', 'status', 'created_at', 'updated_at']
         
 class UserSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+    
     class Meta:
         model = models.User
         fields = ['id', 'email', 'phone', 'avatar', 'is_admin']
+        
+    def get_avatar(self, obj):
+        if obj.avatar:
+            return cloudinary.utils.cloudinary_url(obj.avatar.public_id, secure=True)[0]
+        return None
         
 class StudentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -79,7 +87,9 @@ class QRCodeSerializer(serializers.ModelSerializer):
         fields = ['id', 'qr_token', 'date', 'is_used', 'image_url']
 
     def get_image_url(self, obj):
-        return obj.get_image_url()
+        if obj.image:
+            return cloudinary.utils.cloudinary_url(obj.image.public_id, secure=True)[0]
+        return None
     
 class CheckInOutLogSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
@@ -104,7 +114,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'content', 'notification_type', 'attachment', 'created_at']
 
     def get_attachment(self, obj):
-        return obj.attachment.url if obj.attachment else None
+        if obj.attachment:
+            return cloudinary.utils.cloudinary_url(obj.attachment.public_id, secure=True)[0]
+        return None
 
 class UserNotificationSerializer(serializers.ModelSerializer):
     notification = NotificationSerializer()
@@ -121,9 +133,15 @@ class SupportRequestSerializer(serializers.ModelSerializer):
         fields = ['id', 'student', 'request_type', 'description', 'status', 'response', 'created_at']
         
 class PaymentMethodSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     class Meta:
         model = models.PaymentMethod
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'image']
+        
+    def get_image(self, obj):
+        if obj.image:
+            return cloudinary.utils.cloudinary_url(obj.image.public_id, secure=True)[0]
+        return None
         
 class PaymentTransactionSerializer(serializers.ModelSerializer):
     class Meta:

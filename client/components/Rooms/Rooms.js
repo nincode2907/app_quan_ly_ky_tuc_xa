@@ -19,7 +19,6 @@ const Rooms = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [hasMore, setHasMore] = useState(true);
 
-    // Debounce search input
     useEffect(() => {
         const delayDebounce = setTimeout(() => {
             setDebouncedSearchText(searchText.trim());
@@ -40,7 +39,17 @@ const Rooms = () => {
             if (search) url += `&search=${encodeURIComponent(search)}`;
 
             const res = await authApis(token).get(url);
-            const fetched = res.data.results.map(room => ({
+            console.log("Status:", res.status);
+            console.log("Response data:", res.data);
+
+            // res.data là mảng rooms, không có trường results
+            const results = res.data;
+
+            if (!Array.isArray(results)) {
+                throw new Error("Dữ liệu phòng không hợp lệ");
+            }
+
+            const fetched = results.map(room => ({
                 id: room.id.toString(),
                 name: `Phòng ${room.number} ${room.building.area.name} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
                 price: `${room.room_type.price.toLocaleString()}₫/tháng`,
@@ -56,9 +65,14 @@ const Rooms = () => {
                 setRooms(fetched);
             }
 
-            setHasMore(res.data.next !== null);
+            // Vì backend không trả next page
+            setHasMore(fetched.length > 0);
         } catch (err) {
-            console.error("Lỗi khi tải danh sách phòng:", err);
+            if (err.response) {
+                console.error("Lỗi API:", err.response.status, err.response.data);
+            } else {
+                console.error("Lỗi không xác định:", err.message);
+            }
             Alert.alert("Lỗi", "Không thể tải danh sách phòng. Vui lòng thử lại.");
         } finally {
             setLoading(false);
@@ -66,12 +80,11 @@ const Rooms = () => {
         }
     }, [loading]);
 
-    // Fetch khi thay đổi nội dung tìm kiếm
+
     useEffect(() => {
         fetchRooms(1, debouncedSearchText, false);
     }, [debouncedSearchText]);
 
-    // Fetch khi lướt đến trang mới
     useEffect(() => {
         if (page > 1) {
             fetchRooms(page, debouncedSearchText, true);

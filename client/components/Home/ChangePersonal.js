@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-    View, Text, TextInput, TouchableOpacity, Image, Alert,
-    KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { authApis, endpoints } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from "@react-native-async-storage/async-storage";

@@ -3,11 +3,12 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
 import { TextInput, HelperText } from 'react-native-paper';
-import Apis, { authApis, endpoints } from "../../configs/Apis";
+import { authApis, endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_KEY } from '@env';
 import styles from './StyleChangePassword';
 
-const OTP_TIMEOUT = 60; // Thời gian đếm ngược (giây)
+const OTP_TIMEOUT = 60;
 
 const ChangePassword = () => {
     const nav = useNavigation();
@@ -25,17 +26,20 @@ const ChangePassword = () => {
     const newPasswordRef = useRef();
     const confirmPasswordRef = useRef();
 
-    // OTP modal states
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [otp, setOtp] = useState('');
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
 
-    // Đếm ngược thời gian nhận OTP
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
 
-    // Hàm validate form trước khi hiện OTP modal
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, []);
+
     const validate = () => {
         if (!oldPassword || !newPassword || !confirmPassword) {
             setMsg("Vui lòng điền đầy đủ thông tin");
@@ -56,15 +60,31 @@ const ChangePassword = () => {
         return true;
     };
 
-    // Gửi yêu cầu tạo OTP lên backend
+    const getEmailFromUserInfo = async (token) => {
+        try {
+            const res = await authApis(token).get(endpoints.user_me, {
+                headers: { 'x-api-key': API_KEY }
+            });
+            return res.data.email;
+        } catch (error) {
+            console.error('Lỗi khi lấy email:', error);
+            return null;
+        }
+    };
+
     const requestOtp = async () => {
         try {
-            let token = await AsyncStorage.getItem('token');
+            const token = await AsyncStorage.getItem('token');
             if (!token) throw new Error('Không tìm thấy token');
 
-            await authApis(token).post(endpoints.requestOtp);
-            Alert.alert('Thông báo', 'Mã OTP đã được gửi đến email của bạn.');
+            const email = await getEmailFromUserInfo(token);
+            if (!email) throw new Error('Không tìm thấy email');
 
+            await authApis(token).post(endpoints.requestOtp, { email }, {
+                headers: { 'x-api-key': API_KEY }
+            });
+
+            Alert.alert('Thông báo', 'Mã OTP đã được gửi đến email của bạn.');
             setTimer(OTP_TIMEOUT);
             startTimer();
         } catch (error) {
@@ -73,7 +93,6 @@ const ChangePassword = () => {
         }
     };
 
-    // Bắt đầu đếm ngược thời gian OTP
     const startTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
 
@@ -88,13 +107,6 @@ const ChangePassword = () => {
         }, 1000);
     };
 
-    useEffect(() => {
-        return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
-        };
-    }, []);
-
-    // Xác nhận OTP và đổi mật khẩu
     const verifyOtpAndChangePassword = async () => {
         if (!otp) {
             setOtpMsg('Vui lòng nhập mã OTP');
@@ -105,21 +117,32 @@ const ChangePassword = () => {
         setOtpLoading(true);
 
         try {
-            let token = await AsyncStorage.getItem('token');
+            const token = await AsyncStorage.getItem('token');
             if (!token) throw new Error('Không tìm thấy token');
 
-            // Gọi API verify OTP
-            await authApis(token).post(endpoints.verifyOtp, { otp });
+            const email = await getEmailFromUserInfo(token);
+            if (!email) throw new Error('Không tìm thấy email');
 
-            // Nếu OTP hợp lệ, gọi API đổi mật khẩu
+            await authApis(token).post(endpoints.verifyOtp, { otp, email }, {
+                headers: { 'x-api-key': API_KEY }
+            });
+
             await authApis(token).post(endpoints.changePassword, {
                 old_password: oldPassword,
                 new_password: newPassword
+            }, {
+                headers: { 'x-api-key': API_KEY }
             });
 
-            Alert.alert('Thành công', 'Mật khẩu đã được cập nhật');
-            setIsModalVisible(false);
-            nav.goBack();
+            Alert.alert('Thành công', 'Mật khẩu đã được cập nhật', [
+                {
+                    text: 'OK',
+                    onPress: () => {
+                        setIsModalVisible(false);
+                        nav.goBack();
+                    }
+                }
+            ]);
         } catch (error) {
             console.error(error);
             setOtpMsg('Mã OTP không hợp lệ hoặc lỗi hệ thống');
@@ -128,7 +151,6 @@ const ChangePassword = () => {
         }
     };
 
-    // Khi nhấn cập nhật, validate và hiện modal nhập OTP
     const onUpdatePress = () => {
         if (!validate()) return;
 
@@ -139,129 +161,111 @@ const ChangePassword = () => {
     };
 
     return (
-        <ScrollView>
-            <View style={styles.container}>
-                <View style={styles.form}>
-                    <HelperText type="error" visible={!!msg}>
-                        {msg}
-                    </HelperText>
+        <ScrollView contentContainerStyle={styles.container}>
+            <View style={styles.form}>
+                <HelperText type="error" visible={!!msg}>
+                    {msg}
+                </HelperText>
 
-                    <Text style={styles.label}>Mật khẩu cũ</Text>
+                <Text style={styles.label}>Mật khẩu cũ</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Nhập mật khẩu cũ"
+                    secureTextEntry={!showOldPassword}
+                    right={<TextInput.Icon icon={showOldPassword ? "eye-off" : "eye"} onPress={() => setShowOldPassword(!showOldPassword)} />}
+                    value={oldPassword}
+                    onChangeText={setOldPassword}
+                    returnKeyType="next"
+                    onSubmitEditing={() => newPasswordRef.current?.focus()}
+                />
+
+                <Text style={styles.label}>Mật khẩu mới</Text>
+                <TextInput
+                    ref={newPasswordRef}
+                    style={styles.input}
+                    placeholder="Nhập mật khẩu mới"
+                    secureTextEntry={!showNewPassword}
+                    right={<TextInput.Icon icon={showNewPassword ? "eye-off" : "eye"} onPress={() => setShowNewPassword(!showNewPassword)} />}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    returnKeyType="next"
+                    onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+                />
+
+                <Text style={styles.label}>Xác nhận mật khẩu mới</Text>
+                <TextInput
+                    ref={confirmPasswordRef}
+                    style={styles.input}
+                    placeholder="Nhập lại mật khẩu mới"
+                    secureTextEntry={!showConfirmPassword}
+                    right={<TextInput.Icon icon={showConfirmPassword ? "eye-off" : "eye"} onPress={() => setShowConfirmPassword(!showConfirmPassword)} />}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    returnKeyType="done"
+                />
+
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => nav.goBack()}
+                        disabled={loading}
+                    >
+                        <Text style={styles.cancelText}>Huỷ</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.updateButton, loading && styles.disabledButton]}
+                        onPress={onUpdatePress}
+                        disabled={loading}
+                    >
+                        <Text style={styles.updateText}>Cập nhật</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            <Modal isVisible={isModalVisible}>
+                <View style={styles.modalContainer}>
+                    <Text style={styles.modalTitle}>Nhập mã OTP</Text>
+
                     <TextInput
                         style={styles.input}
-                        placeholder="Nhập mật khẩu cũ"
-                        secureTextEntry={!showOldPassword}
-                        right={
-                            <TextInput.Icon
-                                icon={showOldPassword ? "eye-off" : "eye"}
-                                onPress={() => setShowOldPassword(prev => !prev)}
-                            />
-                        }
-                        value={oldPassword}
-                        onChangeText={setOldPassword}
-                        returnKeyType="next"
-                        onSubmitEditing={() => newPasswordRef.current?.focus()}
+                        placeholder="Mã OTP"
+                        keyboardType="numeric"
+                        value={otp}
+                        onChangeText={setOtp}
+                        maxLength={6}
                     />
+                    {!!otpMsg && <HelperText type="error" visible>{otpMsg}</HelperText>}
 
-                    <Text style={styles.label}>Mật khẩu mới</Text>
-                    <TextInput
-                        ref={newPasswordRef}
-                        style={styles.input}
-                        placeholder="Nhập mật khẩu mới"
-                        secureTextEntry={!showNewPassword}
-                        right={
-                            <TextInput.Icon
-                                icon={showNewPassword ? "eye-off" : "eye"}
-                                onPress={() => setShowNewPassword(prev => !prev)}
-                            />
-                        }
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                        returnKeyType="next"
-                        onSubmitEditing={() => confirmPasswordRef.current?.focus()}
-                    />
-
-                    <Text style={styles.label}>Xác nhận mật khẩu mới</Text>
-                    <TextInput
-                        ref={confirmPasswordRef}
-                        style={styles.input}
-                        placeholder="Nhập lại mật khẩu mới"
-                        secureTextEntry={!showConfirmPassword}
-                        right={
-                            <TextInput.Icon
-                                icon={showConfirmPassword ? "eye-off" : "eye"}
-                                onPress={() => setShowConfirmPassword(prev => !prev)}
-                            />
-                        }
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        returnKeyType="done"
-                    />
+                    <View style={styles.otpInfoRow}>
+                        {timer > 0 ? (
+                            <Text>Vui lòng chờ {timer} giây để gửi lại OTP</Text>
+                        ) : (
+                            <TouchableOpacity onPress={requestOtp}>
+                                <Text style={styles.resendOtpText}>Gửi lại OTP</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
 
                     <View style={styles.buttonRow}>
                         <TouchableOpacity
                             style={styles.cancelButton}
-                            onPress={() => nav.goBack()}
-                            disabled={loading}
+                            onPress={() => setIsModalVisible(false)}
+                            disabled={otpLoading}
                         >
                             <Text style={styles.cancelText}>Huỷ</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.updateButton, loading && styles.disabledButton]}
-                            onPress={onUpdatePress}
-                            disabled={loading}
+                            style={[styles.updateButton, otpLoading && styles.disabledButton]}
+                            onPress={verifyOtpAndChangePassword}
+                            disabled={otpLoading}
                         >
-                            <Text style={styles.updateText}>Cập nhật</Text>
+                            <Text style={styles.updateText}>Xác nhận</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-
-                {/* Modal nhập OTP */}
-                <Modal isVisible={isModalVisible}>
-                    <View style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>Nhập mã OTP</Text>
-
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Mã OTP"
-                            keyboardType="numeric"
-                            value={otp}
-                            onChangeText={setOtp}
-                            maxLength={6}
-                        />
-                        {!!otpMsg && <HelperText type="error" visible>{otpMsg}</HelperText>}
-
-                        <View style={styles.otpInfoRow}>
-                            {timer > 0 ? (
-                                <Text>Vui lòng chờ {timer} giây để gửi lại OTP</Text>
-                            ) : (
-                                <TouchableOpacity onPress={requestOtp}>
-                                    <Text style={styles.resendOtpText}>Gửi lại OTP</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        <View style={styles.buttonRow}>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setIsModalVisible(false)}
-                                disabled={otpLoading}
-                            >
-                                <Text style={styles.cancelText}>Huỷ</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.updateButton, otpLoading && styles.disabledButton]}
-                                onPress={verifyOtpAndChangePassword}
-                                disabled={otpLoading}
-                            >
-                                <Text style={styles.updateText}>Xác nhận</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-            </View>
+            </Modal>
         </ScrollView>
     );
 };

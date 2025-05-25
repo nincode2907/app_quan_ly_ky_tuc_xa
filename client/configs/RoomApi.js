@@ -3,12 +3,19 @@ import { authApis, endpoints } from './Apis';
 export const toggleFavoriteRoom = async (roomId, token) => {
   try {
     const res = await authApis(token).post(endpoints.toggleFavorite, { room_id: roomId });
-    return res.data;
+    const data = res.data;
+
+    if (data?.is_favorite === undefined) {
+      throw new Error("Phản hồi không hợp lệ từ server");
+    }
+
+    return data;
   } catch (error) {
-    console.error("Toggle favorite error:", error);
+    console.error("Toggle favorite error:", error.response?.data || error.message);
     throw error;
   }
 };
+
 
 export const getFavoriteRooms = async (token) => {
   try {

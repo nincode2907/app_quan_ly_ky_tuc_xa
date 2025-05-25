@@ -155,7 +155,26 @@ const Login = () => {
                     </Button>
                 </View>
 
+
                 <View style={Styles.googleLogin}>
+                    <Text style={Styles.googleLoginText}>Bạn quên mật khẩu?</Text>
+                    <TouchableOpacity style={Styles.googleButton} onPress={() => nav.navigate("forgotPassword")}>
+                        <Image
+                            source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745247491/d4kxbpmvarvtvhsnfpea.png" }}
+                            style={Styles.googleImg}
+                        />
+                        <Text>Quên mật khẩu</Text>
+                    </TouchableOpacity>
+                </View>
+
+            </View>
+        </ScrollView>
+    );
+};
+
+export default Login;
+
+{/* <View style={Styles.googleLogin}>
                     <Text style={Styles.googleLoginText}>hoặc đăng nhập với</Text>
                     <TouchableOpacity style={Styles.googleButton}>
                         <Image
@@ -164,17 +183,11 @@ const Login = () => {
                         />
                         <Text>Google</Text>
                     </TouchableOpacity>
-                </View>
+                </View> */}
 
-                {/* <View style={Styles.signupContainer}>
+{/* <View style={Styles.signupContainer}>
                     <Text style={Styles.signupPrompt}>Bạn chưa có tài khoản?</Text>
                     <TouchableOpacity onPress={() => nav.navigate("register")}>
                         <Text style={Styles.signupLink}> Đăng ký</Text>
                     </TouchableOpacity>
                 </View> */}
-            </View>
-        </ScrollView>
-    );
-};
-
-export default Login;

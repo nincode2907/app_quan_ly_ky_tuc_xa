@@ -184,7 +184,7 @@ export default StyleSheet.create({
     },
 
     payText: {
-        color: '#E3C7A5',
+        color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
         marginLeft: 8,

@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Alert, Text, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import {
+    View,
+    TextInput,
+    Alert,
+    Text,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    ScrollView,
+    Platform,
+    StyleSheet,
+    TouchableOpacity,
+} from 'react-native';
 import { authApis, endpoints } from '../../configs/Apis';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -7,28 +18,38 @@ const RoomRegister = ({ route, navigation }) => {
     const { roomId, roomNumber, buildingName } = route.params;
     const [reason, setReason] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pressed, setPressed] = useState(false);
 
     const handleSubmit = async () => {
+        if (!reason.trim()) {
+            Alert.alert('Lỗi', 'Vui lòng nhập lý do.');
+            return;
+        }
         setLoading(true);
         try {
             const token = await AsyncStorage.getItem('token');
             const api = authApis(token);
 
             const formData = new FormData();
-            formData.append('requested_room_id', roomId.toString()); // FormData yêu cầu string
+            formData.append('requested_room_id', roomId.toString());
             formData.append('reason', reason);
+
+            console.log('Gửi dữ liệu:', {
+                requested_room_id: roomId.toString(),
+                reason,
+            });
 
             const res = await api.post(endpoints.roomRequest, formData, {
                 headers: {
-                    'Content-Type': 'multipart/form-data', // Quan trọng: đúng kiểu backend cần
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            Alert.alert("Thành công", res.data.message || "Đã gửi yêu cầu.");
+            Alert.alert('Thành công', res.data.message || 'Đã gửi yêu cầu.');
             navigation.navigate('roomStatus');
         } catch (err) {
-            console.error(err);
-            Alert.alert("Lỗi", err.response?.data?.error || "Gửi yêu cầu thất bại.");
+            // console.error('Lỗi API:', err.response?.data || err.message || err);
+            Alert.alert('Lỗi', err.response?.data?.error || 'Gửi yêu cầu thất bại.');
         } finally {
             setLoading(false);
         }
@@ -37,12 +58,16 @@ const RoomRegister = ({ route, navigation }) => {
 
     return (
         <KeyboardAvoidingView
-            style={{ flex: 1, padding: 20 }}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
-                <Text style={{ fontSize: 18, marginBottom: 10 }}>
-                    Đăng ký phòng: {roomNumber ? `Phòng ${roomNumber}` : ''} {buildingName ? `- ${buildingName}` : ''}
+            <ScrollView
+                contentContainerStyle={styles.scrollContainer}
+                keyboardShouldPersistTaps="handled"
+            >
+                <Text style={styles.title}>
+                    Đăng ký phòng: {roomNumber ? `Phòng ${roomNumber}` : ''}{' '}
+                    {buildingName ? `- ${buildingName}` : ''}
                 </Text>
 
                 <TextInput
@@ -51,24 +76,90 @@ const RoomRegister = ({ route, navigation }) => {
                     onChangeText={setReason}
                     multiline
                     numberOfLines={4}
-                    style={{
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        padding: 12,
-                        textAlignVertical: 'top',
-                        backgroundColor: '#fff',
-                        marginBottom: 20
-                    }}
+                    style={styles.textInput}
+                    editable={!loading}
                 />
 
                 {loading ? (
-                    <ActivityIndicator size="large" color="#E3C7A5" />
+                    <ActivityIndicator size="large" color="#E3C7A5" style={styles.loading} />
                 ) : (
-                    <Button title="Xác nhận" onPress={handleSubmit} />
+                    <TouchableOpacity
+                        style={[
+                            styles.button,
+                            pressed && styles.buttonPressed,
+                            loading && styles.buttonDisabled,
+                        ]}
+                        onPress={handleSubmit}
+                        activeOpacity={0.8}
+                        disabled={loading}
+                        onPressIn={() => setPressed(true)}
+                        onPressOut={() => setPressed(false)}
+                    >
+                        <Text style={styles.buttonText}>Xác nhận</Text>
+                    </TouchableOpacity>
                 )}
             </ScrollView>
         </KeyboardAvoidingView>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        marginTop: 250,
+        padding: 20,
+        backgroundColor: '#F8F8F8',
+    },
+    scrollContainer: {
+        flexGrow: 1,
+        justifyContent: 'center',
+    },
+    title: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 15,
+        color: '#222',
+        textAlign: 'center',
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 5,
+        padding: 16,
+        textAlignVertical: 'top',
+        backgroundColor: '#fff',
+        marginBottom: 20,
+        fontSize: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
+    },
+    loading: {
+        marginTop: 10,
+    },
+    button: {
+        backgroundColor: '#1E319D',
+        paddingVertical: 12,
+        borderRadius: 5,
+        alignItems: 'center',
+        shadowColor: '#C99D69',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.4,
+        shadowRadius: 7,
+        elevation: 5,
+    },
+    buttonPressed: {
+        backgroundColor: '#b7976f',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+});
 
 export default RoomRegister;

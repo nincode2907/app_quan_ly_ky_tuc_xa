@@ -11,13 +11,11 @@ const ExtensionsFavouriteRoom = () => {
     const [likedRooms, setLikedRooms] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Lấy token từ AsyncStorage
     const getToken = async () => {
         const token = await AsyncStorage.getItem('token');
         return token;
     };
 
-    // Load danh sách phòng yêu thích từ API
     const loadFavoriteRooms = async () => {
         try {
             setLoading(true);
@@ -28,8 +26,20 @@ const ExtensionsFavouriteRoom = () => {
                 setLoading(false);
                 return;
             }
-            const data = await getFavoriteRooms(token);
-            setLikedRooms(data);
+
+            const results = await getFavoriteRooms(token);
+
+            const fetched = results.map(room => ({
+                id: room.id.toString(),
+                name: `Phòng ${room.number} ${room.building.area?.name ?? ''} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
+                price: `${room.room_type.price.toLocaleString()}₫/tháng`,
+                image: room.image || 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744606423/jpcya6itafrlh7inth29.jpg',
+                people: `${room.room_type.capacity - room.available_slots}/${room.room_type.capacity} người`,
+                time: '1 giờ trước',
+                is_favorite: room.is_favorite,
+            }));
+
+            setLikedRooms(fetched);
         } catch (error) {
             Alert.alert('Lỗi', 'Không thể tải danh sách phòng yêu thích.');
             console.error(error);
@@ -38,21 +48,27 @@ const ExtensionsFavouriteRoom = () => {
         }
     };
 
+
     useEffect(() => {
         loadFavoriteRooms();
     }, []);
 
-    // Toggle like / unlike một phòng
-    const handleToggleLike = async (room) => {
+    const toggleFavorite = async (room) => {
         try {
             const token = await getToken();
             if (!token) {
                 Alert.alert('Thông báo', 'Bạn cần đăng nhập để thay đổi trạng thái yêu thích.');
                 return;
             }
-            await toggleFavoriteRoom(room.id, token);
-            // Reload danh sách phòng yêu thích sau khi thay đổi
-            loadFavoriteRooms();
+
+            const response = await toggleFavoriteRoom(room.id, token);
+
+            // Cập nhật trực tiếp trong state mà không cần reload toàn bộ
+            setLikedRooms(prevRooms =>
+                response?.is_favorite
+                    ? [...prevRooms, { ...room, is_favorite: true }]
+                    : prevRooms.filter(r => r.id === room.id ? false : true)
+            );
         } catch (error) {
             Alert.alert('Lỗi', 'Không thể thay đổi trạng thái yêu thích. Vui lòng thử lại.');
             console.error(error);
@@ -60,25 +76,28 @@ const ExtensionsFavouriteRoom = () => {
     };
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })} style={styles.card}>
-            <Image source={{ uri: item.image }} style={styles.roomImage} />
-            <View style={styles.roomInfo}>
-                <Text style={styles.roomName}>{item.name || `Phòng ${item.number}`}</Text>
-                <Text style={styles.roomPrice}>{item.price?.toLocaleString()} VNĐ</Text>
-                <Text style={styles.roomTime}>{item.time_posted || ''}</Text>
-                <View style={styles.roomBottom}>
-                    <View style={styles.roomPeople}>
-                        <AntDesign
-                            name="heart"
-                            size={16}
-                            color={item.is_favorite ? 'red' : '#ccc'}
-                            onPress={() => handleToggleLike(item)}
-                        />
-                        <Text style={styles.peopleText}>{item.people || ''}</Text>
+        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
+            <View style={styles.card}>
+                <Image source={{ uri: item.image }} style={styles.roomImage} />
+                <View style={styles.roomInfo}>
+                    <Text style={styles.roomName}>{item.name}</Text>
+                    <Text style={styles.roomPrice}>{item.price}</Text>
+                    <Text style={styles.roomTime}>{item.time}</Text>
+                    <View style={styles.roomBottom}>
+                        <View style={styles.roomPeople}>
+                            <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                                <AntDesign
+                                    name="heart"
+                                    size={16}
+                                    color={item.is_favorite ? 'red' : '#ccc'}
+                                />
+                            </TouchableOpacity>
+                            <Text style={styles.peopleText}>{item.people}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
+                            <Text style={styles.viewMore}>Xem thêm...</Text>
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
-                        <Text style={styles.viewMore}>Xem thêm...</Text>
-                    </TouchableOpacity>
                 </View>
             </View>
         </TouchableOpacity>
@@ -102,7 +121,6 @@ const ExtensionsFavouriteRoom = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.filterText}>Phòng yêu thích</Text>
             <FlatList
                 data={likedRooms}
                 keyExtractor={(item) => item.id.toString()}

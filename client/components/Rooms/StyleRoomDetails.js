@@ -71,7 +71,7 @@ export default StyleSheet.create({
         borderRadius: 20,
     },
     buttonText: {
-        color: '#E3C7A5',
+        color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
     },

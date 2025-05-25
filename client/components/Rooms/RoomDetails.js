@@ -3,8 +3,9 @@ import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Ale
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import StyleRoomDetails from './StyleRoomDetails';
+import { authApis, endpoints } from '../../configs/Apis';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { toggleFavoriteRoom } from '../../configs/RoomApi'; 
+import { toggleFavoriteRoom } from '../../configs/RoomApi';
 
 const RoomDetails = () => {
     const nav = useNavigation();

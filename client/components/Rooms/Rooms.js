@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, TextInput, FlatList, Image, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -19,30 +19,43 @@ const Rooms = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [hasMore, setHasMore] = useState(true);
 
+    const debounceTimeoutRef = useRef(null);
+
     useEffect(() => {
-        const delayDebounce = setTimeout(() => {
+        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+
+        debounceTimeoutRef.current = setTimeout(() => {
             setDebouncedSearchText(searchText.trim());
             setPage(1);
         }, 500);
-        return () => clearTimeout(delayDebounce);
+
+        return () => {
+            if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+        };
     }, [searchText]);
 
     const fetchRooms = useCallback(async (targetPage = 1, search = '', append = false) => {
-        if (loading) return;
-        setLoading(true);
+        if (loading) return;  
 
+        setLoading(true);
         try {
             const token = await AsyncStorage.getItem("token");
-            if (!token) throw new Error("Token không tồn tại!");
+            if (!token) {
+                Alert.alert("Lỗi", "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
+                setLoading(false);
+                setRefreshing(false);
+                return;
+            }
 
             let url = `${endpoints.rooms}?page=${targetPage}`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
 
             const res = await authApis(token).get(url);
-            console.log("Status:", res.status);
-            console.log("Response data:", res.data);
 
-            // res.data là mảng rooms, không có trường results
+            if (res.status !== 200) {
+                throw new Error(`Lỗi server: ${res.status}`);
+            }
+
             const results = res.data;
 
             if (!Array.isArray(results)) {
@@ -51,28 +64,22 @@ const Rooms = () => {
 
             const fetched = results.map(room => ({
                 id: room.id.toString(),
-                name: `Phòng ${room.number} ${room.building.area.name} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
+                name: `Phòng ${room.number} ${room.building.area?.name ?? ''} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
                 price: `${room.room_type.price.toLocaleString()}₫/tháng`,
                 image: room.image || 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744606423/jpcya6itafrlh7inth29.jpg',
                 people: `${room.room_type.capacity - room.available_slots}/${room.room_type.capacity} người`,
                 time: '1 giờ trước',
                 is_favorite: room.is_favorite,
             }));
-
             if (append) {
                 setRooms(prev => [...prev, ...fetched]);
             } else {
                 setRooms(fetched);
             }
 
-            // Vì backend không trả next page
             setHasMore(fetched.length > 0);
         } catch (err) {
-            if (err.response) {
-                console.error("Lỗi API:", err.response.status, err.response.data);
-            } else {
-                console.error("Lỗi không xác định:", err.message);
-            }
+            console.error("Lỗi khi fetch rooms:", err);
             Alert.alert("Lỗi", "Không thể tải danh sách phòng. Vui lòng thử lại.");
         } finally {
             setLoading(false);
@@ -80,13 +87,13 @@ const Rooms = () => {
         }
     }, [loading]);
 
-
     useEffect(() => {
-        fetchRooms(1, debouncedSearchText, false);
+        if (!loading) fetchRooms(1, debouncedSearchText, false);
     }, [debouncedSearchText]);
 
+    // Khi page tăng > 1, load thêm dữ liệu (append)
     useEffect(() => {
-        if (page > 1) {
+        if (page > 1 && !loading) {
             fetchRooms(page, debouncedSearchText, true);
         }
     }, [page]);
@@ -97,10 +104,16 @@ const Rooms = () => {
         }
     };
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
         setPage(1);
-        fetchRooms(1, debouncedSearchText, false);
+        try {
+            await fetchRooms(1, debouncedSearchText, false);
+        } catch (err) {
+            console.error("Lỗi khi refresh:", err);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     const onPressSearch = () => {
@@ -117,22 +130,58 @@ const Rooms = () => {
     );
 
     const toggleFavorite = async (roomId) => {
+        setRooms(prevRooms => prevRooms.map(r => {
+            // console.log(`ID: ${r.id}, Kiểu dữ liệu: ${typeof r.id}`);
+            if (r.id === roomId.toString()) {
+                return { ...r, is_favorite: !r.is_favorite };
+            }
+            return r;
+        }));
+
         try {
             const token = await AsyncStorage.getItem("token");
-            if (!token) throw new Error("Token không tồn tại!");
+            if (!token) {
+                Alert.alert("Lỗi", "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
+
+                setRooms(prevRooms => prevRooms.map(r => {
+                    if (r.id === roomId.toString()) {
+                        return { ...r, is_favorite: !r.is_favorite };
+                    }
+                    return r;
+                }));
+                return;
+            }
 
             const data = await toggleFavoriteRoom(roomId, token);
-            if (data.success !== undefined) {
-                const updated = rooms.map(r =>
-                    r.id === roomId.toString() ? { ...r, is_favorite: data.is_favorite } : r
-                );
-                setRooms(updated);
+            console.log('Response toggleFavoriteRoom:', data);
+
+            if (data?.is_favorite === undefined) {
+                throw new Error("Phản hồi không hợp lệ từ server");
             }
+
+            setRooms(prevRooms => prevRooms.map(r => {
+                if (r.id === roomId.toString()) {
+                    return { ...r, is_favorite: data.is_favorite };
+                }
+                return r;
+            }));
+
         } catch (err) {
             console.error("Lỗi khi thay đổi trạng thái yêu thích:", err);
-            Alert.alert("Lỗi", "Không thể cập nhật trạng thái yêu thích.");
+
+            Alert.alert("Lỗi", err.response?.data?.error || "Không thể cập nhật trạng thái yêu thích.");
+
+            // Rollback lại trạng thái UI
+            setRooms(prevRooms => prevRooms.map(r => {
+                if (r.id === roomId.toString()) {
+                    return { ...r, is_favorite: !r.is_favorite };
+                }
+                return r;
+            }));
         }
     };
+
+
 
     const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
@@ -144,12 +193,13 @@ const Rooms = () => {
                     <Text style={styles.roomTime}>{item.time}</Text>
                     <View style={styles.roomBottom}>
                         <View style={styles.roomPeople}>
-                            <AntDesign
-                                name="heart"
-                                size={16}
-                                color={item.is_favorite ? 'red' : '#ccc'}
-                                onPress={() => toggleFavorite(item.id)}
-                            />
+                            <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                                <AntDesign
+                                    name="heart"
+                                    size={16}
+                                    color={item.is_favorite ? 'red' : '#ccc'}
+                                />
+                            </TouchableOpacity>
                             <Text style={styles.peopleText}>{item.people}</Text>
                         </View>
                         <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>

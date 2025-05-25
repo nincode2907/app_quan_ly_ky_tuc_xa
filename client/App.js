@@ -21,6 +21,7 @@ import ChangePersonal from './components/Home/ChangePersonal';
 import Login from './components/User/Login';
 import Register from './components/User/Register';
 import HomeCreen from "./components/HomeScreen/HomeScreen";
+import ForgotPassword from './components/User/ForgotPassword';
 import RoomDetails from './components/Rooms/RoomDetails';
 import RegisterChangeRoom from './components/Rooms/RegisterChangeRoom';
 import RoomsStatus from "./components/Rooms/RoomStatus";
@@ -74,6 +75,23 @@ const StackNavigator = () => {
       <Stack.Screen name="login" component={Login} options={{ headerShown: false }} />
       <Stack.Screen name="register" component={Register} options={{ headerShown: false }} />
       <Stack.Screen name="homepersonal" component={HomePersonal} options={{ headerShown: false }} />
+      <Stack.Screen name="forgotPassword"
+        component={ForgotPassword}
+        options={{
+          headerStyle: { backgroundColor: "#1E319D", height: 100 },
+          headerTintColor: "#E3C7A5",
+          headerTitle: () => (
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Image
+                source={{ uri: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1741062641/gyjdx9ztcqt6arxyb1al.png' }}
+                style={{ width: 30, height: 30, marginRight: 8 }}
+              />
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+                Quên mật khẩu
+              </Text>
+            </View>
+          ),
+        }} />
 
       <Stack.Screen
         name="homeqr"
@@ -156,9 +174,9 @@ const StackNavigator = () => {
         component={RoomDetails}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
               Thông tin chi tiết phòng
             </Text>
           ),
@@ -170,9 +188,9 @@ const StackNavigator = () => {
         component={RegisterChangeRoom}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
               Điền vào mẫu đổi phòng
             </Text>
           ),
@@ -211,10 +229,10 @@ const StackNavigator = () => {
         component={ExtensionsPayBillsDetails}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
                 Thanh toán hóa đơn
               </Text>
             </View>
@@ -227,9 +245,9 @@ const StackNavigator = () => {
         component={ExtensionsFavouriteRoom}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
               Danh sách phòng yêu thích
             </Text>
           ),
@@ -328,7 +346,7 @@ const App = () => {
     <MyUserContext.Provider value={user}>
       <MyDispatchContext.Provider value={dispatch}>
         <LikedRoomsProvider>
-          <SearchProvider> 
+          <SearchProvider>
             <NavigationContainer>
               <StackNavigator />
             </NavigationContainer>

@@ -22,6 +22,7 @@ const HomePersonal = () => {
             const token = await AsyncStorage.getItem("token");
             const res = await authApis(token).get(endpoints['studentInfo']);
             const student = res.data;
+            console.log("Room details:", res.data);
 
             setUserInfo({
                 name: student.full_name,
@@ -29,7 +30,7 @@ const HomePersonal = () => {
                 email: student.user.email,
                 phone: student.user.phone,
                 pwd: '*********',
-                gender: student.gender === 'MALE' ? 'Nam' : (student.gender === 'FEMALE' ? 'Nữ' : 'Khác'),
+                gender: student.gender === 'male' ? 'Nam' : (student.gender === 'female' ? 'Nữ' : 'Khác'),
                 birthday: student.date_of_birth,
                 avatar: student.user.avatar,
                 faculty: student.faculty.name,

@@ -10,7 +10,7 @@ import { toggleFavoriteRoom } from '../../configs/RoomApi';
 const RoomDetails = () => {
     const nav = useNavigation();
     const route = useRoute();
-    const { roomId } = route.params;
+    const { roomId, isFavorite } = route.params;
 
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -22,10 +22,10 @@ const RoomDetails = () => {
 
             const data = await toggleFavoriteRoom(room.id, token);
             if (data && typeof data.is_favorite === "boolean") {
-                setRoom(prev => ({
-                    ...prev,
-                    is_favorite: data.is_favorite
-                }));
+                setRoom({
+                    ...room,
+                    is_favorite: data.is_favorite ?? isFavorite,
+                });
             }
         } catch (error) {
             console.error("Lỗi khi toggle favorite:", error);
@@ -33,7 +33,8 @@ const RoomDetails = () => {
         }
     };
 
-    const fetchRoomDetails = async () => {
+
+    const loadRoomDetails = async () => {
         try {
             const token = await AsyncStorage.getItem("token");
             if (!token) {
@@ -43,9 +44,9 @@ const RoomDetails = () => {
             }
 
             const url = `${endpoints.rooms.endsWith('/') ? endpoints.rooms : endpoints.rooms + '/'}${roomId}/`;
-
             const response = await authApis(token).get(url);
             setRoom(response.data);
+            // console.log("Room details:", response.data);
         } catch (error) {
             console.error('Error fetching room details:', error);
         } finally {
@@ -54,7 +55,7 @@ const RoomDetails = () => {
     };
 
     useEffect(() => {
-        fetchRoomDetails();
+        loadRoomDetails();
     }, [roomId]);
 
     if (loading) {
@@ -84,13 +85,13 @@ const RoomDetails = () => {
                 <View style={StyleRoomDetails.infoContainer}>
                     <View style={StyleRoomDetails.headerRow}>
                         <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}</Text>
-                        <TouchableOpacity onPress={handleToggleFavorite}>
+                        {/* <TouchableOpacity onPress={handleToggleFavorite}>
                             <AntDesign
                                 name={room.is_favorite ? 'heart' : 'hearto'}
                                 size={24}
                                 color={room.is_favorite ? 'red' : '#B0B0B0'}
                             />
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                     </View>
 
                     <Text style={StyleRoomDetails.roomPrice}>{room.room_type?.price.toLocaleString()} VNĐ</Text>

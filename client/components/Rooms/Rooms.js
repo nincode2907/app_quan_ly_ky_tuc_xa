@@ -12,57 +12,30 @@ const Rooms = () => {
     const nav = useNavigation();
     const { searchText, setSearchText } = useSearchContext();
 
-    const [debouncedSearchText, setDebouncedSearchText] = useState(searchText);
     const [rooms, setRooms] = useState([]);
-    const [page, setPage] = useState(1);
+    const [filteredRooms, setFilteredRooms] = useState([]);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
-    const [hasMore, setHasMore] = useState(true);
 
     const debounceTimeoutRef = useRef(null);
 
-    useEffect(() => {
-        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-
-        debounceTimeoutRef.current = setTimeout(() => {
-            setDebouncedSearchText(searchText.trim());
-            setPage(1);
-        }, 500);
-
-        return () => {
-            if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
-        };
-    }, [searchText]);
-
-    const fetchRooms = useCallback(async (targetPage = 1, search = '', append = false) => {
-        if (loading) return;  
-
+    const loadRooms = useCallback(async () => {
         setLoading(true);
         try {
             const token = await AsyncStorage.getItem("token");
             if (!token) {
                 Alert.alert("Lỗi", "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
                 setLoading(false);
-                setRefreshing(false);
                 return;
             }
 
-            let url = `${endpoints.rooms}?page=${targetPage}`;
-            if (search) url += `&search=${encodeURIComponent(search)}`;
+            const res = await authApis(token).get(endpoints.rooms);
 
-            const res = await authApis(token).get(url);
-
-            if (res.status !== 200) {
-                throw new Error(`Lỗi server: ${res.status}`);
+            if (res.status !== 200 || !Array.isArray(res.data)) {
+                throw new Error("Lỗi dữ liệu hoặc phản hồi không hợp lệ");
             }
 
-            const results = res.data;
-
-            if (!Array.isArray(results)) {
-                throw new Error("Dữ liệu phòng không hợp lệ");
-            }
-
-            const fetched = results.map(room => ({
+            const fetched = res.data.map(room => ({
                 id: room.id.toString(),
                 name: `Phòng ${room.number} ${room.building.area?.name ?? ''} Tòa ${room.building.name} - KTX ${room.building.gender === 'male' ? 'Nam' : 'Nữ'} - Loại phòng ${room.room_type.name}`,
                 price: `${room.room_type.price.toLocaleString()}₫/tháng`,
@@ -71,13 +44,9 @@ const Rooms = () => {
                 time: '1 giờ trước',
                 is_favorite: room.is_favorite,
             }));
-            if (append) {
-                setRooms(prev => [...prev, ...fetched]);
-            } else {
-                setRooms(fetched);
-            }
 
-            setHasMore(fetched.length > 0);
+            setRooms(fetched);
+            setFilteredRooms(filterRooms(fetched, searchText));
         } catch (err) {
             console.error("Lỗi khi fetch rooms:", err);
             Alert.alert("Lỗi", "Không thể tải danh sách phòng. Vui lòng thử lại.");
@@ -85,41 +54,35 @@ const Rooms = () => {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [loading]);
+    }, []);
 
-    useEffect(() => {
-        if (!loading) fetchRooms(1, debouncedSearchText, false);
-    }, [debouncedSearchText]);
-
-    // Khi page tăng > 1, load thêm dữ liệu (append)
-    useEffect(() => {
-        if (page > 1 && !loading) {
-            fetchRooms(page, debouncedSearchText, true);
-        }
-    }, [page]);
-
-    const handleLoadMore = () => {
-        if (!loading && hasMore) {
-            setPage(prev => prev + 1);
-        }
+    const filterRooms = (roomList, search) => {
+        const keyword = search.toLowerCase().trim();
+        return roomList.filter(room => room.name.toLowerCase().includes(keyword));
     };
+
+    useEffect(() => {
+        loadRooms();
+    }, []);
+
+    useEffect(() => {
+        if (debounceTimeoutRef.current) clearTimeout(debounceTimeoutRef.current);
+
+        debounceTimeoutRef.current = setTimeout(() => {
+            setFilteredRooms(filterRooms(rooms, searchText));
+        }, 300);
+
+        return () => clearTimeout(debounceTimeoutRef.current);
+    }, [searchText, rooms]);
 
     const onRefresh = async () => {
         setRefreshing(true);
-        setPage(1);
-        try {
-            await fetchRooms(1, debouncedSearchText, false);
-        } catch (err) {
-            console.error("Lỗi khi refresh:", err);
-        } finally {
-            setRefreshing(false);
-        }
+        await loadRooms();
     };
 
-    const onPressSearch = () => {
-        setPage(1);
-        setDebouncedSearchText(searchText.trim());
-    };
+    // const onPressSearch = () => {
+    //     setFilteredRooms(filterRooms(rooms, searchText));
+    // };
 
     useFocusEffect(
         useCallback(() => {
@@ -130,61 +93,26 @@ const Rooms = () => {
     );
 
     const toggleFavorite = async (roomId) => {
-        setRooms(prevRooms => prevRooms.map(r => {
-            // console.log(`ID: ${r.id}, Kiểu dữ liệu: ${typeof r.id}`);
-            if (r.id === roomId.toString()) {
-                return { ...r, is_favorite: !r.is_favorite };
-            }
-            return r;
-        }));
+        setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: !r.is_favorite } : r));
 
         try {
             const token = await AsyncStorage.getItem("token");
-            if (!token) {
-                Alert.alert("Lỗi", "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
-
-                setRooms(prevRooms => prevRooms.map(r => {
-                    if (r.id === roomId.toString()) {
-                        return { ...r, is_favorite: !r.is_favorite };
-                    }
-                    return r;
-                }));
-                return;
-            }
+            if (!token) throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
 
             const data = await toggleFavoriteRoom(roomId, token);
-            console.log('Response toggleFavoriteRoom:', data);
+            if (data?.is_favorite === undefined) throw new Error("Phản hồi không hợp lệ từ server");
 
-            if (data?.is_favorite === undefined) {
-                throw new Error("Phản hồi không hợp lệ từ server");
-            }
-
-            setRooms(prevRooms => prevRooms.map(r => {
-                if (r.id === roomId.toString()) {
-                    return { ...r, is_favorite: data.is_favorite };
-                }
-                return r;
-            }));
-
+            setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: data.is_favorite } : r));
         } catch (err) {
-            console.error("Lỗi khi thay đổi trạng thái yêu thích:", err);
-
-            Alert.alert("Lỗi", err.response?.data?.error || "Không thể cập nhật trạng thái yêu thích.");
-
-            // Rollback lại trạng thái UI
-            setRooms(prevRooms => prevRooms.map(r => {
-                if (r.id === roomId.toString()) {
-                    return { ...r, is_favorite: !r.is_favorite };
-                }
-                return r;
-            }));
+            console.error("Lỗi toggle yêu thích:", err);
+            Alert.alert("Lỗi", err.message || "Không thể cập nhật trạng thái yêu thích.");
+            // rollback
+            setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: !r.is_favorite } : r));
         }
     };
 
-
-
     const renderItem = ({ item }) => (
-        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
+        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id, isFavorite: item.is_favorite })}>
             <View style={styles.card}>
                 <Image source={{ uri: item.image }} style={styles.roomImage} />
                 <View style={styles.roomInfo}>
@@ -194,15 +122,11 @@ const Rooms = () => {
                     <View style={styles.roomBottom}>
                         <View style={styles.roomPeople}>
                             <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
-                                <AntDesign
-                                    name="heart"
-                                    size={16}
-                                    color={item.is_favorite ? 'red' : '#ccc'}
-                                />
+                                <AntDesign name="heart" size={16} color={item.is_favorite ? 'red' : '#ccc'} />
                             </TouchableOpacity>
                             <Text style={styles.peopleText}>{item.people}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
+                        <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id, isFavorite: item.is_favorite })}>
                             <Text style={styles.viewMore}>Xem thêm...</Text>
                         </TouchableOpacity>
                     </View>
@@ -221,11 +145,9 @@ const Rooms = () => {
                     value={searchText}
                     onChangeText={setSearchText}
                     returnKeyType="search"
-                    onSubmitEditing={onPressSearch}
+                    // onSubmitEditing={onPressSearch}
                 />
-                <TouchableOpacity onPress={onPressSearch}>
                     <Ionicons style={styles.search} name="search" size={20} color="#B0B0B0" />
-                </TouchableOpacity>
             </View>
 
             <View style={styles.filterBar}>
@@ -237,27 +159,20 @@ const Rooms = () => {
                 </View>
             </View>
 
-            {loading && rooms.length === 0 ? (
+            {loading && filteredRooms.length === 0 ? (
                 <ActivityIndicator size="large" color="#E3C7A5" style={{ marginTop: 20 }} />
-            ) : rooms.length === 0 ? (
+            ) : filteredRooms.length === 0 ? (
                 <Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>
                     Không có phòng nào phù hợp.
                 </Text>
             ) : (
                 <FlatList
-                    data={rooms}
+                    data={filteredRooms}
                     keyExtractor={item => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.roomList}
-                    onEndReached={handleLoadMore}
-                    onEndReachedThreshold={0.5}
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    ListFooterComponent={
-                        loading && hasMore ? (
-                            <ActivityIndicator size="small" color="#E3C7A5" style={{ marginVertical: 10 }} />
-                        ) : null
-                    }
                 />
             )}
         </View>

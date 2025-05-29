@@ -1,24 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import {
+    View, Text, TextInput, TouchableOpacity, Alert,
+    StyleSheet, Keyboard, KeyboardAvoidingView, Platform
+} from 'react-native';
 import Modal from 'react-native-modal';
 import { HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import API, { endpoints } from "../../configs/Apis";
+import API, { endpoints } from '../../configs/Apis';
 import { API_KEY } from '@env';
 
 const OTP_TIMEOUT = 60;
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
-    const nav = useNavigation();
     const [loading, setLoading] = useState(false);
-
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [otp, setOtp] = useState('');
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
+    const navigation = useNavigation();
 
     useEffect(() => {
         return () => {
@@ -28,7 +30,6 @@ const ForgotPassword = () => {
 
     const startTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
-
         timerRef.current = setInterval(() => {
             setTimer(prev => {
                 if (prev <= 1) {
@@ -40,23 +41,28 @@ const ForgotPassword = () => {
         }, 1000);
     };
 
+    const isValidEmail = (email) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
     const requestOtp = async () => {
         const trimmedEmail = email.trim();
-        if (!trimmedEmail) {
-            Alert.alert('Lỗi', 'Vui lòng nhập email.');
+        if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+            Alert.alert('Lỗi', 'Vui lòng nhập email hợp lệ.');
             return;
         }
 
+        Keyboard.dismiss();
         setLoading(true);
+
         try {
             await API.post(endpoints.requestOtp, { email: trimmedEmail }, {
                 headers: { 'x-api-key': API_KEY }
             });
 
-            Alert.alert('Thành công', 'Mã OTP đã được gửi đến email của bạn.');
             setTimer(OTP_TIMEOUT);
             startTimer();
-
+            setIsModalVisible(true);
+            Alert.alert('Thành công', 'Mã OTP đã được gửi đến email của bạn.');
         } catch (error) {
             console.error(error);
             Alert.alert('Lỗi', 'Không thể gửi mã OTP. Vui lòng thử lại.');
@@ -65,57 +71,51 @@ const ForgotPassword = () => {
         }
     };
 
-    const verifyOTP = async () => {
+    const verifyOtp = async () => {
         if (!otp) {
             setOtpMsg('Vui lòng nhập mã OTP');
             return;
         }
+
         setOtpMsg('');
         setOtpLoading(true);
 
         try {
-            const response = await API.post(endpoints.resetPassword, {
+            const res = await API.post(endpoints.resetPassword, {
                 otp,
                 email: email.trim()
             });
 
             Alert.alert(
                 'Thành công',
-                response.data.message || 'Mật khẩu mới đã được gửi đến email. Vui lòng kiểm tra và đăng nhập.',
+                res.data.message || 'Mật khẩu mới đã được gửi đến email. Vui lòng kiểm tra và đăng nhập.',
                 [
                     {
                         text: 'Đăng nhập',
                         onPress: () => {
                             setIsModalVisible(false);
-                            nav.navigate('login');
+                            navigation.navigate('login');
                         }
-                    },
+                    }
                 ]
             );
         } catch (error) {
             console.error(error);
-            if (error.response?.data?.error) {
-                Alert.alert('Lỗi', error.response.data.error);
-            } else {
-                Alert.alert('Lỗi', 'Mã OTP không hợp lệ hoặc có lỗi mạng');
-            }
+            const msg = error.response?.data?.error || 'Mã OTP không hợp lệ hoặc lỗi mạng.';
+            Alert.alert('Lỗi', msg);
         } finally {
             setOtpLoading(false);
         }
     };
 
-    const onUpdatePress = () => {
-
-        setOtp('');
-        setOtpMsg('');
-        setIsModalVisible(true);
-        requestOtp();
-    };
-
     return (
-        <View style={styles.container}>
-            <View>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+            <View style={styles.container}>
                 <Text style={styles.title}>Quên mật khẩu</Text>
+
                 <TextInput
                     placeholder="Nhập email"
                     value={email}
@@ -124,64 +124,70 @@ const ForgotPassword = () => {
                     keyboardType="email-address"
                     autoCapitalize="none"
                 />
+
                 <TouchableOpacity
-                    onPress={onUpdatePress}
+                    onPress={requestOtp}
                     style={[styles.button, loading && styles.disabledButton]}
-                    disabled={loading}>
-                    <Text style={styles.buttonText}>Gửi mã xác thực</Text>
+                    disabled={loading}
+                >
+                    <Text style={styles.buttonText}>
+                        {loading ? 'Đang gửi...' : 'Gửi mã xác thực'}
+                    </Text>
                 </TouchableOpacity>
-            </View>
-            <Modal isVisible={isModalVisible}>
-                <View style={styles.modalContainer}>
-                    <Text style={styles.modalTitle}>Nhập mã OTP</Text>
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Mã OTP"
-                        keyboardType="numeric"
-                        value={otp}
-                        onChangeText={setOtp}
-                        maxLength={6}
-                        autoFocus
-                    />
-                    {!!otpMsg && <HelperText type="error" visible>{otpMsg}</HelperText>}
+                {/* OTP Modal */}
+                <Modal isVisible={isModalVisible}>
+                    <View style={styles.modalContainer}>
+                        <Text style={styles.modalTitle}>Nhập mã OTP</Text>
 
-                    <View style={styles.otpInfoRow}>
-                        {timer > 0 ? (
-                            <Text>Vui lòng chờ {timer} giây để gửi lại OTP</Text>
-                        ) : (
-                            <TouchableOpacity onPress={requestOtp}>
-                                <Text style={styles.resendOtpText}>Gửi lại OTP</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Mã OTP"
+                            keyboardType="numeric"
+                            value={otp}
+                            onChangeText={setOtp}
+                            maxLength={6}
+                            autoFocus
+                        />
+                        {!!otpMsg && <HelperText type="error">{otpMsg}</HelperText>}
+
+                        <View style={styles.otpInfoRow}>
+                            {timer > 0 ? (
+                                <Text>Vui lòng chờ {timer} giây để gửi lại OTP</Text>
+                            ) : (
+                                <TouchableOpacity onPress={requestOtp}>
+                                    <Text style={styles.resendOtpText}>Gửi lại OTP</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => setIsModalVisible(false)}
+                                disabled={otpLoading}
+                            >
+                                <Text style={styles.cancelText}>Huỷ</Text>
                             </TouchableOpacity>
-                        )}
-                    </View>
 
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={() => setIsModalVisible(false)}
-                            disabled={otpLoading}
-                        >
-                            <Text style={styles.cancelText}>Huỷ</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.updateButton, otpLoading && styles.disabledButton]}
-                            onPress={verifyOTP}
-                            disabled={otpLoading}
-                        >
-                            <Text style={styles.updateText}>Xác nhận</Text>
-                        </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.updateButton, otpLoading && styles.disabledButton]}
+                                onPress={verifyOtp}
+                                disabled={otpLoading}
+                            >
+                                <Text style={styles.updateText}>Xác nhận</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </Modal>
-        </View>
+                </Modal>
+            </View>
+        </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 250,
+        flex: 1,
         justifyContent: 'center',
         paddingHorizontal: 24,
         backgroundColor: '#f9f9f9',
@@ -216,7 +222,6 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.6,
-        backgroundColor: '#ccc',
     },
     modalContainer: {
         backgroundColor: '#fff',

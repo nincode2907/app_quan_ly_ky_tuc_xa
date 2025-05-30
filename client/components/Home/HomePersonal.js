@@ -22,7 +22,7 @@ const HomePersonal = () => {
             const token = await AsyncStorage.getItem("token");
             const res = await authApis(token).get(endpoints['studentInfo']);
             const student = res.data;
-            console.log("Room details:", res.data);
+            // console.log("StudentInfo:", res.data);
 
             setUserInfo({
                 name: student.full_name,
@@ -126,7 +126,7 @@ const HomePersonal = () => {
                     <InfoRow label="Giới tính:" value={userInfo.gender} />
                     <InfoRow label="Ngày sinh:" value={userInfo.birthday} />
                     <InfoRow label="Khoa:" value={userInfo.faculty} />
-                    <InfoRow label="Phòng:" value={userInfo.room} />
+                    <InfoRow label="Phòng:" value={userInfo.room ? `${userInfo.room.number}`: 'Chưa có'}/>
                 </View>
 
                 <View style={StylePersonal.button}>

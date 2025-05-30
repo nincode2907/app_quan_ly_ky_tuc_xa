@@ -13,6 +13,7 @@ export default StyleSheet.create({
         backgroundColor: '#1E319D',
         paddingHorizontal: 15,
         height: 60,
+        marginTop: 30
     },
     headerLeft: {
         flexDirection: 'row',

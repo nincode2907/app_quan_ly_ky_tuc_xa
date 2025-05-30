@@ -31,7 +31,7 @@ const ExtensionsPayBills = () => {
             for (let bill of res.data.results) {
                 const item = {
                     id: bill.id.toString(),
-                    title: bill.description || `Hóa đơn #${bill.id}`,
+                    title: (bill.description?.split('\n')[0]) || `Hóa đơn #${bill.id}`,
                 };
 
                 const status = bill.status.toLowerCase();

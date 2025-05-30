@@ -61,19 +61,19 @@ const ExtensionsFavouriteRoom = () => {
                 return;
             }
 
-            const response = await toggleFavoriteRoom(room.id, token);
-
-            // Cập nhật trực tiếp trong state mà không cần reload toàn bộ
+            const response = await toggleFavoriteRoom(parseInt(room.id), token);    
+            // Cập nhật trực tiếp trong state
             setLikedRooms(prevRooms =>
                 response?.is_favorite
                     ? [...prevRooms, { ...room, is_favorite: true }]
-                    : prevRooms.filter(r => r.id === room.id ? false : true)
+                    : prevRooms.filter(r => r.id !== room.id)
             );
         } catch (error) {
             Alert.alert('Lỗi', 'Không thể thay đổi trạng thái yêu thích. Vui lòng thử lại.');
-            console.error(error);
+            console.error('Toggle favorite error:', error.response?.data || error.message);
         }
     };
+
 
     const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => nav.navigate('roomDetails', { roomId: item.id })}>
@@ -85,7 +85,7 @@ const ExtensionsFavouriteRoom = () => {
                     <Text style={styles.roomTime}>{item.time}</Text>
                     <View style={styles.roomBottom}>
                         <View style={styles.roomPeople}>
-                            <TouchableOpacity onPress={() => toggleFavorite(item.id)}>
+                            <TouchableOpacity onPress={() => toggleFavorite(item)}>
                                 <AntDesign
                                     name="heart"
                                     size={16}

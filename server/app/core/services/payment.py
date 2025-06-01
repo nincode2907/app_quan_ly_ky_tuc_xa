@@ -2,11 +2,13 @@ import uuid
 import hmac
 import hashlib
 import requests
+import logging
 from decouple import config
 from django.conf import settings
 from django.utils import timezone
 from core.models import PaymentMethod, PaymentTransaction
 
+logger = logging.getLogger(__name__)
 class PaymentService:
     _services = {}
     
@@ -72,19 +74,25 @@ class MoMoService:
         
         request_data["signature"] = signature
         
-        response = requests.post(config('SANDBOX_MOMO_DOMAIN'), json=request_data)
-        response_data = response.json()
-        print(response_data)
-        
-        payment_transaction.response_data = response_data
-        payment_transaction.save()
-        
-        if response_data.get('resultCode') == 0:
-            return response_data['payUrl']
-        else:
+        try:
+            response = requests.post(config('SANDBOX_MOMO_DOMAIN'), json=request_data)
+            response_data = response.json()
+            logger.info(f"MoMo create_payment response: {response_data}")
+            
+            payment_transaction.response_data = response_data
+            payment_transaction.save()
+            
+            if response_data.get('resultCode') == 0:
+                return response_data['payUrl']
+            else:
+                payment_transaction.status = "FAILED"
+                payment_transaction.save()
+                raise Exception(f"MoMo API error: {response_data.get('message')}")
+        except requests.RequestException as e:
+            logger.error(f"MoMo API request failed: {str(e)}")
             payment_transaction.status = "FAILED"
             payment_transaction.save()
-            raise Exception(f"MoMo API error: {response_data.get('message')}")
+            raise Exception(f"MoMo API request failed: {str(e)}")
         
     @staticmethod
     def handle_callback(data):
@@ -105,18 +113,28 @@ class MoMoService:
         ).hexdigest()
         
         if signature != data['signature']:
+            logger.error(f"Invalid MoMo signature for orderId: {data['orderId']}")
             raise ValueError("Invalid signature")
         
-        transaction = PaymentTransaction.objects.get(transaction_id=data['orderId'])
-        if not transaction:
-            raise Exception("Transaction not found")
+        try:
+            transaction = PaymentTransaction.objects.get(transaction_id=data["orderId"])
+        except PaymentTransaction.DoesNotExist:
+            logger.error(f"Transaction not found for orderId: {data['orderId']}")
+            raise ValueError("Transaction not found")
+        
+        if transaction.status in ["SUCCESS", "FAILED"]:
+            logger.warning(f"Transaction {data['orderId']} already processed with status {transaction.status}")
+            return transaction.status == "SUCCESS"
         
         if data['resultCode'] == 0:
             transaction.status = 'SUCCESS'
             transaction.bill.status = 'PAID'
             transaction.bill.paid_date = timezone.now()
+            logger.info(f"Payment successful for transaction: {transaction.transaction_id}")
+            logger.info(f"Payment successful for transaction: {data['orderId']}")
         else:
             transaction.status = 'FAILED'
+            logger.info(f"Payment failed for transaction: {data['orderId']}")
             
         transaction.response_data = data
         transaction.save()

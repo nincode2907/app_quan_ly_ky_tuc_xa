@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = 'https://ninpy.pythonanywhere.com';
+// const BASE_URL = 'https://ninpy.pythonanywhere.com';
+const BASE_URL = 'https://2d14-2402-800-63a7-95fc-7cd6-d3d1-aef-358f.ngrok-free.app';
 
 export const endpoints = {
     'login': '/o/token/',
@@ -24,7 +25,7 @@ export const endpoints = {
 
     'bills': '/api/bills/',
     'paymentTransactions': '/api/payment-transactions/',
-    'paymenMethods/': '/api/payment-methods/',
+    'paymentMethods': '/api/payment-methods/',
     'initiatePayment': '/api/payment/initiate-payment/',
     'supportRequest': '/api/support-requests/',
 

@@ -641,7 +641,7 @@ def initiate_payment(request):
     bill_id = request.data.get('bill_id')
     payment_method_id = request.data.get('payment_method_id')
 
-    bill = get_object_or_404(Bill, id=bill_id)
+    bill = get_object_or_404(Bill, id=bill_id, student__user=request.user)
     payment_method = get_object_or_404(PaymentMethod, id=payment_method_id)
 
     try:
@@ -658,7 +658,7 @@ def initiate_payment(request):
 )
 @api_view(['GET'])
 @permission_classes([])
-def payment_return(request):
+def payment_success(request):
     transaction_id = request.query_params.get('orderId')
     transaction = get_object_or_404(PaymentTransaction, transaction_id=transaction_id)
     payment_method = transaction.payment_method
@@ -666,7 +666,13 @@ def payment_return(request):
     try:
         service = PaymentService.get_service(payment_method.name)
         success = service.handle_callback(request.query_params)
-        return Response({'status': 'success' if success else 'failed'}, status=status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'status': 'success' if success else 'failed',
+            'transaction_id': transaction.transaction_id,
+            'bill_id': transaction.bill.id,
+            'amount': transaction.amount,
+            'status_transaction': transaction.status
+        }, status=status.HTTP_200_OK if success else status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     

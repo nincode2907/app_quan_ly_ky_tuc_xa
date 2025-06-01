@@ -35,8 +35,6 @@ import RepairSupportDetails from './components/PersonalPage/RepairSupportDetails
 import ReportSupport from "./components/PersonalPage/ReportSupport";
 import ReportSupportDetail from "./components/PersonalPage/ReportSupportDetail";
 
-
-
 const Tab = createBottomTabNavigator();
 const TabNavigator = () => {
   return (

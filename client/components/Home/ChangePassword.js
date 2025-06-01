@@ -31,17 +31,40 @@ const ChangePassword = () => {
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
 
+    const [isFirstLogin, setIsFirstLogin] = useState(false);
+
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
 
+    // Lấy thông tin user và set isFirstLogin
     useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                const token = await AsyncStorage.getItem('token');
+                if (!token) return;
+
+                const res = await authApis(token).get(endpoints.user_me, {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+                if (res && res.data) {
+                    setIsFirstLogin(res.data.is_first_login || false);
+                }
+            } catch (error) {
+                console.error('Lỗi khi lấy thông tin user:', error);
+            }
+        };
+
+        fetchUserInfo();
+
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
 
     const validate = () => {
-        if (!oldPassword || !newPassword || !confirmPassword) {
+        if (!newPassword || !confirmPassword) {
             setMsg("Vui lòng điền đầy đủ thông tin");
             return false;
         }
@@ -51,8 +74,13 @@ const ChangePassword = () => {
             return false;
         }
 
-        if (oldPassword === newPassword) {
+        if (!isFirstLogin && oldPassword === newPassword) {
             setMsg("Mật khẩu mới không được trùng với mật khẩu cũ");
+            return false;
+        }
+
+        if (newPassword.length < 6) {
+            setMsg("Mật khẩu phải có ít nhất 6 ký tự");
             return false;
         }
 
@@ -60,14 +88,17 @@ const ChangePassword = () => {
         return true;
     };
 
+    // Hàm lấy email từ user_me (để gửi OTP)
     const getEmailFromUserInfo = async (token) => {
         try {
             const res = await authApis(token).get(endpoints.user_me, {
-                headers: { 'x-api-key': API_KEY }
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
             });
             return res.data.email;
         } catch (error) {
-            console.error('Lỗi khi lấy email:', error);
+            console.error('Lỗi khi lấy email user:', error);
             return null;
         }
     };
@@ -127,10 +158,12 @@ const ChangePassword = () => {
                 headers: { 'x-api-key': API_KEY }
             });
 
-            await authApis(token).post(endpoints.changePassword, {
-                old_password: oldPassword,
-                new_password: newPassword
-            }, {
+            // Gửi dữ liệu đổi mật khẩu theo isFirstLogin
+            const payload = isFirstLogin
+                ? { new_password: newPassword }
+                : { old_password: oldPassword, new_password: newPassword };
+
+            await authApis(token).post(endpoints.changePassword, payload, {
                 headers: { 'x-api-key': API_KEY }
             });
 
@@ -151,14 +184,39 @@ const ChangePassword = () => {
         }
     };
 
-    const onUpdatePress = () => {
+    const onUpdatePress = async () => {
         if (!validate()) return;
 
-        setOtp('');
-        setOtpMsg('');
-        setIsModalVisible(true);
-        requestOtp();
+        if (isFirstLogin) {
+            try {
+                setLoading(true);
+                const token = await AsyncStorage.getItem('token');
+                if (!token) throw new Error('Không tìm thấy token');
+
+                await authApis(token).post(endpoints.changePassword, { new_password: newPassword }, {
+                    headers: { 'x-api-key': API_KEY }
+                });
+
+                Alert.alert('Thành công', 'Mật khẩu đã được cập nhật', [
+                    {
+                        text: 'OK',
+                        onPress: () => nav.goBack()
+                    }
+                ]);
+            } catch (error) {
+                console.error(error);
+                Alert.alert('Lỗi', 'Không thể đổi mật khẩu. Vui lòng thử lại.');
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            setOtp('');
+            setOtpMsg('');
+            setIsModalVisible(true);
+            requestOtp();
+        }
     };
+
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -167,17 +225,21 @@ const ChangePassword = () => {
                     {msg}
                 </HelperText>
 
-                <Text style={styles.label}>Mật khẩu cũ</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Nhập mật khẩu cũ"
-                    secureTextEntry={!showOldPassword}
-                    right={<TextInput.Icon icon={showOldPassword ? "eye-off" : "eye"} onPress={() => setShowOldPassword(!showOldPassword)} />}
-                    value={oldPassword}
-                    onChangeText={setOldPassword}
-                    returnKeyType="next"
-                    onSubmitEditing={() => newPasswordRef.current?.focus()}
-                />
+                {!isFirstLogin && (
+                    <>
+                        <Text style={styles.label}>Mật khẩu cũ</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Nhập mật khẩu cũ"
+                            secureTextEntry={!showOldPassword}
+                            right={<TextInput.Icon icon={showOldPassword ? "eye-off" : "eye"} onPress={() => setShowOldPassword(!showOldPassword)} />}
+                            value={oldPassword}
+                            onChangeText={setOldPassword}
+                            returnKeyType="next"
+                            onSubmitEditing={() => newPasswordRef.current?.focus()}
+                        />
+                    </>
+                )}
 
                 <Text style={styles.label}>Mật khẩu mới</Text>
                 <TextInput
@@ -235,7 +297,7 @@ const ChangePassword = () => {
                         onChangeText={setOtp}
                         maxLength={6}
                     />
-                    {!!otpMsg && <HelperText type="error" visible>{otpMsg}</HelperText>}
+                    {!!otpMsg && <HelperText type="error">{otpMsg}</HelperText>}
 
                     <View style={styles.otpInfoRow}>
                         {timer > 0 ? (
@@ -258,7 +320,7 @@ const ChangePassword = () => {
 
                         <TouchableOpacity
                             style={[styles.updateButton, otpLoading && styles.disabledButton]}
-                            onPress={verifyOtpAndChangePassword}
+                            onPress={verifyOtpAndChangePassword} // ✅ ĐÚNG
                             disabled={otpLoading}
                         >
                             <Text style={styles.updateText}>Xác nhận</Text>

@@ -188,14 +188,16 @@ const ExtensionsPayBillsDetails = () => {
                 <Text style={styles.infoText}>Họ và tên & MSSV: {student.full_name} - {student.student_id}</Text>
                 <Text style={styles.infoText}>Khoa: {student.faculty?.name || "Chưa có"}</Text>
                 <Text style={styles.infoText}>
-                    Tòa nhà - Số phòng: {student.room ? student.room.building + " - " + student.room.number : "Chưa có"}
+                    Tòa nhà - Số phòng: {student.room ? student.room.building.name + " - " + student.room.number : "Chưa có"}
                 </Text>
-                <Text style={styles.infoText}>Số lượng sinh viên: {student.room ? student.room.occupancy : "Chưa có"} sinh viên</Text>
+                <Text style={styles.infoText}>
+                    Số lượng sinh viên: {student.room ? student.room.room_type.capacity : "Chưa có"} sinh viên
+                </Text>
             </View>
 
             <View style={styles.billSection}>
                 <View style={styles.billHeaderRow}>
-                    <Text style={styles.monthText}>{bill.description}</Text>
+                    <Text style={styles.monthText}>{bill.description?.split('\n')[0]}</Text>
                     <View style={styles.statusBox}>
                         <Ionicons name={statusIcon} size={16} color={statusColor} />
                         <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
@@ -208,11 +210,21 @@ const ExtensionsPayBillsDetails = () => {
                     <Text style={styles.tableHeaderCell}>Đơn giá (VNĐ)</Text>
                 </View>
 
-                <View style={styles.tableRow}>
-                    <Text style={styles.tableCell}>1</Text>
-                    <Text style={styles.tableCell}>Tổng hóa đơn</Text>
-                    <Text style={styles.tableCell}>{Number(bill.amount).toLocaleString()}₫</Text>
-                </View>
+                {bill.description
+                    .split('\n')                      // Tách từng dòng
+                    .slice(1)                         // Bỏ dòng đầu tiên (ví dụ: "Hóa đơn tháng 5/2025")
+                    .map((item, index) => {
+                        const parts = item.split(':'); // Tách tên khoản và số tiền
+                        const title = parts[0].replace('- ', '').trim();
+                        const value = parts[1]?.trim().replace(' VNĐ', '') || '0';
+                        return (
+                            <View style={styles.tableRow} key={index}>
+                                <Text style={styles.tableCell}>{index + 1}</Text>
+                                <Text style={styles.tableCell}>{title}</Text>
+                                <Text style={styles.tableCell}>{Number(value).toLocaleString()}₫</Text>
+                            </View>
+                        );
+                    })}
 
                 <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Tổng chi phí cần trả</Text>

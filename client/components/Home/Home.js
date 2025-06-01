@@ -3,7 +3,7 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Styles from './Style';
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
-import {  endpoints } from "../../configs/Apis";
+import { endpoints } from "../../configs/Apis";
 import axiosInstance from "../../configs/AxiosInterceptor";
 import Icon from 'react-native-vector-icons/FontAwesome';
 
@@ -28,16 +28,18 @@ const Home = () => {
             // console.log("Response data:", res.data);
 
             if (res.data && res.data.results) {
-                const newNotifications = res.data.results.map(item => ({
-                    id: item.id,
-                    title: item.notification.title,
-                    content: item.notification.content,
-                    icon: item.notification.notification_type,
-                    created_at: item.created_at,
-                    is_read: item.is_read,
-                }));
+                const newNotifications = res.data.results
+                    .reverse()
+                    .map(item => ({
+                        id: item.id,
+                        title: item.notification.title,
+                        content: item.notification.content,
+                        icon: item.notification.notification_type,
+                        created_at: item.created_at,
+                        is_read: item.is_read,
+                    }));
 
-                setNotifications(prev => [...prev, ...newNotifications]);
+                setNotifications(prev => [...newNotifications, ...prev]);
                 setHasMore(res.data.next !== null);
                 setPage(prev => prev + 1);
             } else {

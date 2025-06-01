@@ -25,7 +25,7 @@ export const endpoints = {
 
     'bills': '/api/bills/',
     'paymentTransactions': '/api/payment-transactions/',
-    'paymenMethods/': '/api/payment-methods/',
+    'paymentMethods': '/api/payment-methods/',
     'initiatePayment': '/api/payment/initiate-payment/',
     'supportRequest': '/api/support-requests/',
 

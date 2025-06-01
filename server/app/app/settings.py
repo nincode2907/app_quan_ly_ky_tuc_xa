@@ -20,6 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = config('DEBUG_MODE', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY', cast=str)
 ALLOWED_HOSTS = ['*']
+# MY_DOMAIN = "www.pythonanywhere.com"
+MY_DOMAIN = "2d14-2402-800-63a7-95fc-7cd6-d3d1-aef-358f.ngrok-free.app"
 
 AUTH_USER_MODEL = 'core.User'
 
@@ -237,8 +239,8 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL') 
 
 # setting payment momo url
-SANDBOX_REDIRECT_URL="https://" + ALLOWED_HOSTS[0] + "/api/payment_success/"
-SANDBOX_IPN_URL="https://" + ALLOWED_HOSTS[0] + "/api/momo_notify/"
+SANDBOX_REDIRECT_URL = "https://" + MY_DOMAIN + "/api/payment/payment_success/"
+SANDBOX_IPN_URL = "https://" + MY_DOMAIN + "/api/payment/payment_notify/"
 
 # API KEY
 API_KEY = config('API_KEY')

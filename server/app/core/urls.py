@@ -26,8 +26,9 @@ urlpatterns = [
     path('user/reset-password/', views.reset_password, name='reset_password'),
     path('request-otp/', views.request_otp, name='request_otp'),
     path('verify-otp/', views.verify_otp, name='verify_otp'),
-    path('initiate-payment/', views.initiate_payment, name='initiate_payment'),
-    path('payment/return/', views.payment_return, name='payment_return'),
+    path('payment/initiate-payment/', views.initiate_payment, name='initiate_payment'),
+    path('payment/payment_success/', views.payment_success, name='payment_success'),
+    path("payment/payment_notify/", views.payment_notify, name="payment_notify"),
     
     # path('chat/pending-students/', views.pending_students, name='pending_students'),
     # path('chat/history/<int:student_id>/', views.chat_history, name='chat_history'),

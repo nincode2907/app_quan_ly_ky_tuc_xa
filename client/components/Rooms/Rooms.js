@@ -3,8 +3,8 @@ import { View, Text, TextInput, FlatList, Image, TouchableOpacity, ActivityIndic
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSearchContext } from '../../contexts/SearchContext';
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authApis, endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
+import { endpoints } from '../../configs/Apis';
 import { toggleFavoriteRoom } from '../../configs/RoomApi';
 import styles from './Style';
 
@@ -22,14 +22,7 @@ const Rooms = () => {
     const loadRooms = useCallback(async () => {
         setLoading(true);
         try {
-            const token = await AsyncStorage.getItem("token");
-            if (!token) {
-                Alert.alert("Lỗi", "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
-                setLoading(false);
-                return;
-            }
-
-            const res = await authApis(token).get(endpoints.rooms);
+            const res = await axiosInstance.get(endpoints.rooms);
 
             if (res.status !== 200 || !Array.isArray(res.data)) {
                 throw new Error("Lỗi dữ liệu hoặc phản hồi không hợp lệ");
@@ -96,10 +89,7 @@ const Rooms = () => {
         setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: !r.is_favorite } : r));
 
         try {
-            const token = await AsyncStorage.getItem("token");
-            if (!token) throw new Error("Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.");
-
-            const data = await toggleFavoriteRoom(roomId, token);
+            const data = await toggleFavoriteRoom(roomId);
             if (data?.is_favorite === undefined) throw new Error("Phản hồi không hợp lệ từ server");
 
             setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: data.is_favorite } : r));
@@ -145,9 +135,9 @@ const Rooms = () => {
                     value={searchText}
                     onChangeText={setSearchText}
                     returnKeyType="search"
-                    // onSubmitEditing={onPressSearch}
+                // onSubmitEditing={onPressSearch}
                 />
-                    <Ionicons style={styles.search} name="search" size={20} color="#B0B0B0" />
+                <Ionicons style={styles.search} name="search" size={20} color="#B0B0B0" />
             </View>
 
             <View style={styles.filterBar}>

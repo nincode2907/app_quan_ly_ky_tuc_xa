@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { View, Text, ScrollView, ActivityIndicator } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import StyleNotification from "./StyleNotification";
-import Apis, { authApis, endpoints } from "../../configs/Apis";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { endpoints } from "../../configs/Apis";
+import axiosInstance from "../../configs/AxiosInterceptor";
 import RenderHtml from 'react-native-render-html';
 import { useWindowDimensions } from 'react-native';
 
@@ -17,11 +17,9 @@ const HomeNotification = () => {
 
     const loadNotification = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            const response = await authApis(token).get(`${endpoints.notifications}${notificationId}/`);
-
-            const data = response.data.notification;
-            // console.log("Response data:", response.data);
+            const res = await axiosInstance.get(`${endpoints.notifications}${notificationId}/`);
+            const data = res.data.notification;
+            // console.log("Response data:", res.data);
 
             setNotification({
                 icon: data.notification_type,

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoiding
 import { authApis, endpoints } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axiosInstance from "../../configs/AxiosInterceptor";
 import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
@@ -47,11 +48,10 @@ const ChangePersonal = ({ route, navigation }) => {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            const token = await AsyncStorage.getItem("token");
-            const genderValue = newGender === 'Nam' ? 'MALE' : newGender === 'Nữ' ? 'FEMALE' : 'OTHER';
-
             const formData = new FormData();
             formData.append("phone", newPhone);
+
+            const genderValue = newGender === 'Nam' ? 'MALE' : newGender === 'Nữ' ? 'FEMALE' : 'OTHER';
             formData.append("gender", genderValue);
             formData.append("home_town", newAddress);
             formData.append("date_of_birth", newBirthday);
@@ -67,8 +67,8 @@ const ChangePersonal = ({ route, navigation }) => {
                 });
             }
 
-            const res = await authApis(token).post(endpoints["updateProfile"], formData, {
-                headers: { "Content-Type": "multipart/form-data" },
+            const res = await axiosInstance.post(endpoints["updateProfile"], formData, {
+                headers: { "Content-Type": "multipart/form-data" }
             });
 
             if (res.status === 200) {
@@ -84,6 +84,7 @@ const ChangePersonal = ({ route, navigation }) => {
             setLoading(false);
         }
     };
+
 
     const handleCancel = () => {
         navigation.goBack();

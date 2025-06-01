@@ -4,8 +4,9 @@ import { Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from "@react-navigation/native";
 import styles from './StyleExtensionsPayBills';
-import { authApis, endpoints } from "../../configs/Apis";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import axiosInstance from "../../configs/AxiosInterceptor";
+import { endpoints } from "../../configs/Apis";
+
 
 const ExtensionsPayBills = () => {
     const nav = useNavigation();
@@ -15,15 +16,9 @@ const ExtensionsPayBills = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    const fetchBills = async () => {
+    const loadBills = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            if (!token) {
-                console.warn("Token không tồn tại");
-                return;
-            }
-            const res = await authApis(token).get(endpoints.bills);
-            // console.log("Response data:", res.data);
+            const res = await axiosInstance.get(endpoints.bills);
 
             const unpaid = [];
             const paid = [];
@@ -43,7 +38,6 @@ const ExtensionsPayBills = () => {
                 }
             }
 
-
             setPaidBills(paid);
             setUnpaidBills(unpaid);
 
@@ -54,20 +48,18 @@ const ExtensionsPayBills = () => {
         }
     };
 
-
     useEffect(() => {
-        fetchBills(setUnpaidBills, setPaidBills, setLoading);
+        loadBills();
     }, []);
 
     const onRefresh = async () => {
         try {
             setRefreshing(true);
-            await fetchBills();
+            await loadBills();
         } finally {
             setRefreshing(false);
         }
     };
-
 
     const renderBillItem = ({ item }) => (
         <TouchableOpacity onPress={() => nav.navigate("extensionsPayBillsDetails", { billId: item.id })}>

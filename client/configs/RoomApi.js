@@ -1,8 +1,9 @@
 import { authApis, endpoints } from './Apis';
+import axiosInstance from "./AxiosInterceptor";
 
-export const toggleFavoriteRoom = async (roomId, token) => {
+export const toggleFavoriteRoom = async (roomId) => {
   try {
-    const res = await authApis(token).post(endpoints.toggleFavorite, { room_id: roomId });
+    const res = await axiosInstance.post(endpoints.toggleFavorite, { room_id: roomId });
     const data = res.data;
 
     if (data?.is_favorite === undefined) {
@@ -17,12 +18,13 @@ export const toggleFavoriteRoom = async (roomId, token) => {
 };
 
 
-export const getFavoriteRooms = async (token) => {
+export const getFavoriteRooms = async () => {
   try {
-    const res = await authApis(token).get(endpoints.roomsFavorites);
+    const res = await axiosInstance.get(endpoints.roomsFavorites);
     return res.data;
   } catch (error) {
     console.error("Get favorite rooms error:", error);
     throw error;
   }
 };
+

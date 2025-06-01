@@ -1,23 +1,23 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Pressable, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import styles from './StyleExtensionsPayBillsDetails';
-import { authApis, endpoints } from '../../configs/Apis';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
+
 
 const ExtensionsPayBillsDetails = () => {
     const route = useRoute();
     const { billId } = route.params;
     const [bill, setBill] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [modalVisible, setModalVisible] = useState(false);
+    // const [modalVisible, setModalVisible] = useState(false);
 
     useEffect(() => {
         const fetchBillDetails = async () => {
             try {
-                const token = await AsyncStorage.getItem('token');
-                const res = await authApis(token).get(`${endpoints.bills}${billId}/`);
+                const res = await axiosInstance.get(`${endpoints.bills}${billId}/`);
                 setBill(res.data);
             } catch (error) {
                 console.error('Lỗi khi lấy dữ liệu hóa đơn:', error);

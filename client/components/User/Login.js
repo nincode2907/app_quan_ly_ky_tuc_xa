@@ -4,6 +4,7 @@ import { Button, HelperText, TextInput } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import Apis, { endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CLIENT_ID, CLIENT_SECRET } from '@env';
 import Styles from "./Style";
 
 const Login = () => {
@@ -66,8 +67,8 @@ const Login = () => {
             const data = {
                 username: user.username,
                 password: user.password,
-                client_id: "Cu3HL1ySqXavkOfzvqfAE827cPS25M0LnZMEtnfM",
-                client_secret: "Uye8Hr3izkQ7JGgRTBW65XVq3sVX68jVqonIpkiQaive5AQFUKQlz12mTUz8EQt9RzealMnkzTbgPW8RZScWHVxWlNBqyrgZp0CRY5mJOb1YWkWeLvtXalBXnHVrDAKt",
+                client_id: CLIENT_ID,
+                client_secret: CLIENT_SECRET,
                 grant_type: "password"
             };
 
@@ -88,7 +89,6 @@ const Login = () => {
 
             const isFirstLogin = userRes.data.is_first_login;
 
-            // Điều hướng
             if (isFirstLogin) {
                 nav.navigate("changePassword");
             } else {

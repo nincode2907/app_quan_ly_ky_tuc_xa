@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react
 import { Chip } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApis, endpoints } from "../../configs/Apis";
 import styles from './StyleRoomsStatus';
@@ -21,8 +22,7 @@ const RoomStatus = () => {
 
     const fetchRoomRequests = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await authApis(token).get(endpoints.roomStatus);
+            const res = await axiosInstance.get(endpoints.roomStatus);
             setRequests(res.data.results); // <- Quan trọng
         } catch (err) {
             console.error("Lỗi khi tải danh sách yêu cầu phòng:", err);

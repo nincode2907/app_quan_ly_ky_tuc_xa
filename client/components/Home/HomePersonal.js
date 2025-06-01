@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MyDispatchContext } from '../../contexts/Contexts';
-import { authApis, endpoints } from "../../configs/Apis";
+import { endpoints } from "../../configs/Apis";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axiosInstance from "../../configs/AxiosInterceptor";
 import StylePersonal from './StylePersonal';
 
 const HomePersonal = () => {
@@ -19,8 +20,7 @@ const HomePersonal = () => {
 
     const getStudentInfo = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await authApis(token).get(endpoints['studentInfo']);
+            const res = await axiosInstance.get(endpoints['studentInfo']);
             const student = res.data;
             // console.log("StudentInfo:", res.data);
 
@@ -126,7 +126,7 @@ const HomePersonal = () => {
                     <InfoRow label="Giới tính:" value={userInfo.gender} />
                     <InfoRow label="Ngày sinh:" value={userInfo.birthday} />
                     <InfoRow label="Khoa:" value={userInfo.faculty} />
-                    <InfoRow label="Phòng:" value={userInfo.room ? `${userInfo.room.number}`: 'Chưa có'}/>
+                    <InfoRow label="Phòng:" value={userInfo.room ? `${userInfo.room.number}` : 'Chưa có'} />
                 </View>
 
                 <View style={StylePersonal.button}>

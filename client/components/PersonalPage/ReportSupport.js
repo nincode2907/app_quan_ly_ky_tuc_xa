@@ -4,9 +4,8 @@ import { Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import styles from './StyleReportSupport';
-
-import { authApis, endpoints } from '../../configs/Apis';
-import AsyncStorage from '@react-native-async-storage/async-storage'; // để lấy token
+import axiosInstance from "../../configs/AxiosInterceptor";
+import { endpoints } from '../../configs/Apis';
 
 const ReportSupport = () => {
     const [selectedStatus, setSelectedStatus] = useState('pending'); // 'pending' | 'approved' | 'rejected'
@@ -20,8 +19,7 @@ const ReportSupport = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const token = await AsyncStorage.getItem("token");
-            const res = await authApis(token).get(endpoints.supportRequest);
+            const res = await axiosInstance.get(endpoints.supportRequest);
             setData(res.data.results);
             // console.log("Response data:", res.data);
         } catch (err) {

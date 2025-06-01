@@ -11,23 +11,12 @@ const ExtensionsFavouriteRoom = () => {
     const [likedRooms, setLikedRooms] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const getToken = async () => {
-        const token = await AsyncStorage.getItem('token');
-        return token;
-    };
 
     const loadFavoriteRooms = async () => {
         try {
             setLoading(true);
-            const token = await getToken();
-            if (!token) {
-                Alert.alert('Thông báo', 'Bạn cần đăng nhập để xem phòng yêu thích.');
-                setLikedRooms([]);
-                setLoading(false);
-                return;
-            }
 
-            const results = await getFavoriteRooms(token);
+            const results = await getFavoriteRooms();
 
             const fetched = results.map(room => ({
                 id: room.id.toString(),
@@ -61,7 +50,7 @@ const ExtensionsFavouriteRoom = () => {
                 return;
             }
 
-            const response = await toggleFavoriteRoom(parseInt(room.id), token);    
+            const response = await toggleFavoriteRoom(parseInt(room.id));
             // Cập nhật trực tiếp trong state
             setLikedRooms(prevRooms =>
                 response?.is_favorite

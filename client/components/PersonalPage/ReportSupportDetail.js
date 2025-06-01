@@ -4,8 +4,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApis, endpoints } from '../../configs/Apis';
+import { endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import styles from './StyleRepairSupportDetails';
 
 const ReportSupportDetail = () => {
@@ -26,16 +26,16 @@ const ReportSupportDetail = () => {
 
     const getStudentInfo = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await authApis(token).get(endpoints['studentInfo']);
+            const res = await axiosInstance.get(endpoints['studentInfo']);
             const student = res.data;
+            // console.log("StudentInfo:", res.data);
 
             const info = {
                 name: student.full_name,
                 student_id: student.student_id,
                 phone: student.user.phone,
                 email: student.user.email,
-                room: student.room?.name || '',
+                room: student.room ? `${student.room.number}` : 'Chưa có',
             };
 
             setUserInfo(info);
@@ -62,7 +62,7 @@ const ReportSupportDetail = () => {
             setPhone(userInfo.phone || '');
             setEmail(userInfo.email || '');
             if (userInfo.room) {
-                setRoomNumber(userInfo.room.room_number || '');
+                setRoomNumber(userInfo.room);
             }
         }
     }, [userInfo]);
@@ -74,8 +74,6 @@ const ReportSupportDetail = () => {
         }
 
         try {
-            const token = await AsyncStorage.getItem("token");
-
             const requestData = {
                 request_type: selectedIssue,
                 description: description,
@@ -83,7 +81,7 @@ const ReportSupportDetail = () => {
 
             console.log("Gửi requestData:", requestData);
 
-            await authApis(token).post(endpoints['supportRequest'], requestData);
+            await axiosInstance.post(endpoints['supportRequest'], requestData);
 
             Alert.alert('Thành công', 'Yêu cầu của bạn đã được gửi!');
             nav.goBack();

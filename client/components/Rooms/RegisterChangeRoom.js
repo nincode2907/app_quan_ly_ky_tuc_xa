@@ -1,17 +1,7 @@
 import React, { useState } from 'react';
-import {
-    View,
-    TextInput,
-    Alert,
-    Text,
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    ScrollView,
-    Platform,
-    StyleSheet,
-    TouchableOpacity,
-} from 'react-native';
+import { View, TextInput, Alert, Text, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, TouchableOpacity, } from 'react-native';
 import { authApis, endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RoomRegister = ({ route, navigation }) => {
@@ -27,9 +17,6 @@ const RoomRegister = ({ route, navigation }) => {
         }
         setLoading(true);
         try {
-            const token = await AsyncStorage.getItem('token');
-            const api = authApis(token);
-
             const formData = new FormData();
             formData.append('requested_room_id', roomId.toString());
             formData.append('reason', reason);
@@ -39,7 +26,7 @@ const RoomRegister = ({ route, navigation }) => {
                 reason,
             });
 
-            const res = await api.post(endpoints.roomRequest, formData, {
+            const res = await axiosInstance.post(endpoints.roomRequest, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import Modal from 'react-native-modal';
 import { useNavigation } from '@react-navigation/native';
 import { TextInput, HelperText } from 'react-native-paper';
-import { authApis, endpoints } from "../../configs/Apis";
+import { endpoints } from "../../configs/Apis";
+import axiosInstance from "../../configs/AxiosInterceptor";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_KEY } from '@env';
 import styles from './StyleChangePassword';
@@ -43,11 +44,8 @@ const ChangePassword = () => {
                 const token = await AsyncStorage.getItem('token');
                 if (!token) return;
 
-                const res = await authApis(token).get(endpoints.user_me, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                });
+                const res = await axiosInstance.get(endpoints.user_me);
+
                 if (res && res.data) {
                     setIsFirstLogin(res.data.is_first_login || false);
                 }
@@ -91,11 +89,7 @@ const ChangePassword = () => {
     // Hàm lấy email từ user_me (để gửi OTP)
     const getEmailFromUserInfo = async (token) => {
         try {
-            const res = await authApis(token).get(endpoints.user_me, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            const res = await axiosInstance.get(endpoints.user_me);
             return res.data.email;
         } catch (error) {
             console.error('Lỗi khi lấy email user:', error);
@@ -111,7 +105,7 @@ const ChangePassword = () => {
             const email = await getEmailFromUserInfo(token);
             if (!email) throw new Error('Không tìm thấy email');
 
-            await authApis(token).post(endpoints.requestOtp, { email }, {
+            await axiosInstance.post(endpoints.requestOtp, { email }, {
                 headers: { 'x-api-key': API_KEY }
             });
 
@@ -154,7 +148,7 @@ const ChangePassword = () => {
             const email = await getEmailFromUserInfo(token);
             if (!email) throw new Error('Không tìm thấy email');
 
-            await authApis(token).post(endpoints.verifyOtp, { otp, email }, {
+            await axiosInstance.post(endpoints.verifyOtp, { otp, email }, {
                 headers: { 'x-api-key': API_KEY }
             });
 
@@ -163,7 +157,7 @@ const ChangePassword = () => {
                 ? { new_password: newPassword }
                 : { old_password: oldPassword, new_password: newPassword };
 
-            await authApis(token).post(endpoints.changePassword, payload, {
+            await axiosInstance.post(endpoints.changePassword, payload, {
                 headers: { 'x-api-key': API_KEY }
             });
 
@@ -193,7 +187,7 @@ const ChangePassword = () => {
                 const token = await AsyncStorage.getItem('token');
                 if (!token) throw new Error('Không tìm thấy token');
 
-                await authApis(token).post(endpoints.changePassword, { new_password: newPassword }, {
+                await axiosInstance.post(endpoints.changePassword, { new_password: newPassword }, {
                     headers: { 'x-api-key': API_KEY }
                 });
 
@@ -320,7 +314,7 @@ const ChangePassword = () => {
 
                         <TouchableOpacity
                             style={[styles.updateButton, otpLoading && styles.disabledButton]}
-                            onPress={verifyOtpAndChangePassword} // ✅ ĐÚNG
+                            onPress={verifyOtpAndChangePassword}
                             disabled={otpLoading}
                         >
                             <Text style={styles.updateText}>Xác nhận</Text>

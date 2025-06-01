@@ -3,8 +3,10 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Styles from './Style';
 import { useNavigation } from "@react-navigation/native";
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
-import { authApis, endpoints } from "../../configs/Apis";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import {  endpoints } from "../../configs/Apis";
+import axiosInstance from "../../configs/AxiosInterceptor";
+import Icon from 'react-native-vector-icons/FontAwesome';
+
 
 const Home = () => {
     const nav = useNavigation();
@@ -17,13 +19,13 @@ const Home = () => {
     const [hasMore, setHasMore] = useState(true);
 
 
-    const fetchNotifications = useCallback(async () => {
+    const loadNotifications = useCallback(async () => {
         if (loading || !hasMore) return;
         setLoading(true);
 
         try {
-            const token = await AsyncStorage.getItem("token");
-            const res = await authApis(token).get(`${endpoints.notifications}?page=${page}`);
+            const res = await axiosInstance.get(`${endpoints.notifications}?page=${page}`);
+            // console.log("Response data:", res.data);
 
             if (res.data && res.data.results) {
                 const newNotifications = res.data.results.map(item => ({
@@ -32,6 +34,7 @@ const Home = () => {
                     content: item.notification.content,
                     icon: item.notification.notification_type,
                     created_at: item.created_at,
+                    is_read: item.is_read,
                 }));
 
                 setNotifications(prev => [...prev, ...newNotifications]);
@@ -48,8 +51,8 @@ const Home = () => {
     }, [loading, hasMore, page]);
 
     useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
+        loadNotifications();
+    }, [loadNotifications]);
 
     useFocusEffect(
         useCallback(() => {
@@ -66,13 +69,37 @@ const Home = () => {
         const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
         const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
         if (isCloseToBottom && hasMore && !loading) {
-            fetchNotifications(); // Gọi hàm tải thêm khi cuộn gần cuối
+            loadNotifications(); // Gọi hàm tải thêm khi cuộn gần cuối
         }
     };
 
 
-    const handlePress = (notificationId) => {
-        nav.navigate('homenotification', { notificationId });
+    const handlePress = async (notificationId) => {
+        markNotificationRead(notificationId);
+
+        // Cập nhật UI nhanh
+        setNotifications((prev) =>
+            prev.map((n) =>
+                n.id === notificationId ? { ...n, is_read: true } : n
+            )
+        );
+
+        nav.navigate("homenotification", { notificationId });
+    };
+
+
+    const markNotificationRead = async (notificationId) => {
+        try {
+            await axiosInstance.post(endpoints.markRead, { notification_id: notificationId });
+        } catch (err) {
+            // Nếu backend lỗi, rollback UI
+            setNotifications((prev) =>
+                prev.map((n) =>
+                    n.id === notificationId ? { ...n, is_read: false } : n
+                )
+            );
+            console.error(err);
+        }
     };
 
     return (
@@ -124,15 +151,27 @@ const Home = () => {
                         onPress={() => handlePress(item.id)}
                     >
                         <View style={Styles.notificationItem}>
-                            <View style={Styles.notificationItem}>
-                                <Text style={Styles.notificationIcon}>
-                                    {item.icon === "URGENT" ? "⚠️" : "🔔"}
-                                </Text>
-                            </View>
-
+                            <Icon
+                                name={item.icon === "URGENT" ? "exclamation-triangle" : "bell"}
+                                size={22}
+                                color={item.is_read ? "#999" : (item.icon === "URGENT" ? "#d9534f" : "#f0ad4e")}
+                                style={{ marginRight: 10 }}
+                            />
                             <View style={{ flex: 1 }}>
-                                <Text style={Styles.notificationText}>{item.title}</Text>
-                                <Text style={Styles.notificationTime}>
+                                <Text
+                                    style={[
+                                        Styles.notificationText,
+                                        item.is_read && { color: "#999" }
+                                    ]}
+                                >
+                                    {item.title}
+                                </Text>
+                                <Text
+                                    style={[
+                                        Styles.notificationTime,
+                                        item.is_read && { color: "#aaa" }
+                                    ]}
+                                >
                                     {new Date(item.created_at).toLocaleString("vi-VN", {
                                         hour: "2-digit",
                                         minute: "2-digit",

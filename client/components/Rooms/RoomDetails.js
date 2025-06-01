@@ -3,8 +3,8 @@ import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Ale
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import StyleRoomDetails from './StyleRoomDetails';
-import { authApis, endpoints } from '../../configs/Apis';
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import { toggleFavoriteRoom } from '../../configs/RoomApi';
 
 const RoomDetails = () => {
@@ -17,10 +17,10 @@ const RoomDetails = () => {
 
     const handleToggleFavorite = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            if (!token || !room) return;
+            if (!room) return;
 
-            const data = await toggleFavoriteRoom(room.id, token);
+            const data = await toggleFavoriteRoom(room.id);
+
             if (data && typeof data.is_favorite === "boolean") {
                 setRoom({
                     ...room,
@@ -33,22 +33,13 @@ const RoomDetails = () => {
         }
     };
 
-
     const loadRoomDetails = async () => {
         try {
-            const token = await AsyncStorage.getItem("token");
-            if (!token) {
-                console.warn("Chưa có token, vui lòng đăng nhập!");
-                setLoading(false);
-                return;
-            }
-
             const url = `${endpoints.rooms.endsWith('/') ? endpoints.rooms : endpoints.rooms + '/'}${roomId}/`;
-            const response = await authApis(token).get(url);
+            const response = await axiosInstance.get(url);
             setRoom(response.data);
-            // console.log("Room details:", response.data);
         } catch (error) {
-            console.error('Error fetching room details:', error);
+            console.error('Lỗi khi tải chi tiết phòng:', error);
         } finally {
             setLoading(false);
         }
@@ -84,29 +75,39 @@ const RoomDetails = () => {
 
                 <View style={StyleRoomDetails.infoContainer}>
                     <View style={StyleRoomDetails.headerRow}>
-                        <Text style={StyleRoomDetails.roomName}>Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}</Text>
-                        {/* <TouchableOpacity onPress={handleToggleFavorite}>
+                        <Text style={StyleRoomDetails.roomName}>
+                            Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}
+                        </Text>
+                        <TouchableOpacity onPress={handleToggleFavorite}>
                             <AntDesign
                                 name={room.is_favorite ? 'heart' : 'hearto'}
                                 size={24}
                                 color={room.is_favorite ? 'red' : '#B0B0B0'}
                             />
-                        </TouchableOpacity> */}
+                        </TouchableOpacity>
                     </View>
 
-                    <Text style={StyleRoomDetails.roomPrice}>{room.room_type?.price.toLocaleString()} VNĐ</Text>
+                    <Text style={StyleRoomDetails.roomPrice}>
+                        {room.room_type?.price.toLocaleString()} VNĐ
+                    </Text>
 
                     <View style={StyleRoomDetails.infoRow}>
                         <AntDesign name="user" size={18} color="#B0B0B0" />
-                        <Text style={StyleRoomDetails.infoText}>{room.available_slots}/{room.room_type?.capacity}</Text>
+                        <Text style={StyleRoomDetails.infoText}>
+                            {room.available_slots}/{room.room_type?.capacity}
+                        </Text>
                     </View>
 
                     <View style={StyleRoomDetails.infoRow}>
                         <Ionicons name="home-outline" size={18} color="#B0B0B0" />
-                        <Text style={StyleRoomDetails.infoText}>Tầng {room.floor} - {room.building?.area?.name}</Text>
+                        <Text style={StyleRoomDetails.infoText}>
+                            Tầng {room.floor} - {room.building?.area?.name}
+                        </Text>
                     </View>
 
-                    <Text style={[StyleRoomDetails.title, { marginTop: 16 }]}>Thông tin chi tiết phòng</Text>
+                    <Text style={[StyleRoomDetails.title, { marginTop: 16 }]}>
+                        Thông tin chi tiết phòng
+                    </Text>
                     <Text style={StyleRoomDetails.description}>
                         {room.room_type?.description || 'Phòng đầy đủ tiện nghi: máy lạnh, wifi tốc độ cao, giường tầng, vệ sinh riêng,...'}
                     </Text>

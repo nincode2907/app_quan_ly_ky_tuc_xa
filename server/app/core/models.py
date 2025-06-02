@@ -370,6 +370,10 @@ class UserNotification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        unique_together = ('student', 'notification')
+        ordering = ['-created_at']
+    
     def __str__(self):
         return f"{self.student.user.email} - {self.notification.title} - {self.is_read}"
     
@@ -468,7 +472,72 @@ class IssueReport(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.title} - {self.student.full_name} ({self.get_status_display()})"
+        return f"{self.title} - {self.student.full_name}"
+    
+class Survey(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    questions = models.ManyToManyField('SurveyQuestion', related_name='surveys', blank=True)
+    notification = models.ForeignKey(Notification, on_delete=models.SET_NULL, null=True, blank=True, related_name='surveys')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def clean(self):
+        if self.end_date <= self.start_date:
+            raise ValidationError({'end_date': 'Thời gian kết thúc phải sau thời gian bắt đầu.'})
+        if self.end_date < timezone.now():
+            self.is_active = False
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if timezone.now() > self.end_date:
+            self.is_active = False
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} ({self.start_date} - {self.end_date})"
+
+class SurveyQuestion(models.Model):
+    ANSWER_TYPE_CHOICES = (
+        ('RATING', 'Thang điểm (1-5)'),
+        ('TEXT', 'Câu trả lời văn bản'),
+    )
+
+    content = models.CharField(max_length=255)
+    answer_type = models.CharField(max_length=10, choices=ANSWER_TYPE_CHOICES)
+
+    def __str__(self):
+        return f"{self.content} ({self.get_answer_type_display()})"
+
+class SurveyResponse(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='survey_responses')
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses')
+    question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE, related_name='responses')
+    rating = models.IntegerField(null=True, blank=True, choices=[(i, str(i)) for i in range(1, 6)])
+    text_answer = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'survey', 'question']
+
+    def clean(self):
+        if self.question.answer_type == 'RATING' and (self.rating is None or self.rating < 1 or self.rating > 5):
+            raise ValidationError({'rating': 'Điểm đánh giá phải từ 1 đến 5.'})
+        if self.question.answer_type == 'TEXT' and not self.text_answer:
+            raise ValidationError({'text_answer': 'Câu trả lời văn bản là bắt buộc.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.question.content}"
     
 class Message(models.Model):
     STATUS_CHOICES = (

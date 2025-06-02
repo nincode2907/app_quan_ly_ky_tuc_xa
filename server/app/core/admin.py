@@ -8,7 +8,7 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm, SupportRequestAdminForm
 from django.db.models import Count, Sum
-from .models import SupportRequest, IssueReport, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
+from .models import SupportRequest, IssueReport, Survey, SurveyQuestion, SurveyResponse, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -16,6 +16,7 @@ from django.core.mail import send_mail, EmailMessage
 import requests
 import os
 from .templates import index
+from django.db.models import Avg, Count
 
 # Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
@@ -28,6 +29,7 @@ class KTXAdminSite(admin.AdminSite):
         custom_urls = [
             path('ktx-stats/', self.admin_view(self.ktx_stats)),
             path('room-occupancy/', self.admin_view(self.room_occupancy)),
+            path('survey-stats/<int:survey_id>/', self.admin_view(self.survey_stats_view), name='survey-stats')
         ]
         
         # admin_view(): Bắt buộc để kiểm tra quyền truy cập
@@ -52,6 +54,65 @@ class KTXAdminSite(admin.AdminSite):
         return TemplateResponse(request, 'admin/room_occupancy.html', {
             'occupancy': occupancy,
             'opts': self._build_app_dict(request)['core']
+        })
+        
+    def survey_stats_view(self, request, survey_id):
+        try:
+            survey = Survey.objects.prefetch_related('questions__responses__student').get(id=survey_id)
+        except Survey.DoesNotExist:
+            return TemplateResponse(request, index.templates['a_survey_404'], {}, status=404)
+
+        # Kiểm tra trạng thái khảo sát
+        is_active = survey.is_active and survey.end_date >= timezone.now()
+        status_text = "Đang hoạt động" if is_active else "Đã kết thúc"
+
+        # Tính số lượng sinh viên tham gia (distinct student count)
+        total_participants = survey.responses.values('student').distinct().count()
+
+        # Lấy các câu hỏi và thống kê
+        questions = survey.questions.annotate(
+            response_count=Count('responses'),
+            avg_rating=Avg('responses__rating')
+        )
+
+        stats = []
+        for question in questions:
+            responses = question.responses.all()
+            stat = {
+                'question': question.content,
+                'answer_type': question.answer_type,
+                'response_count': question.response_count or 0,
+            }
+            if question.answer_type == 'RATING':
+                # Tính trung bình và phân bố điểm
+                stat['avg_rating'] = round(question.avg_rating or 0, 2)
+                # Phân bố điểm (số lượng mỗi mức điểm 1-5)
+                distribution = {str(i): 0 for i in range(1, 6)}
+                for response in responses:
+                    if response.rating:
+                        distribution[str(response.rating)] += 1
+                # Tính tỷ lệ phần trăm cho mỗi mức điểm
+                stat['distribution_with_percentage'] = {}
+                for rating, count in distribution.items():
+                    percentage = (count / stat['response_count'] * 100) if stat['response_count'] > 0 else 0
+                    stat['distribution_with_percentage'][rating] = {
+                        'count': count,
+                        'percentage': round(percentage, 1)
+                    }
+                stat['distribution'] = distribution
+            elif question.answer_type == 'TEXT':
+                # Lấy danh sách câu trả lời dạng text
+                stat['text_responses'] = [
+                    {'student': f"{r.student.full_name} ({r.student.student_id})", 'text': r.text_answer}
+                    for r in responses if r.text_answer
+                ]
+            stats.append(stat)
+
+        return TemplateResponse(request, index.templates['a_survey_stats'], {
+            'survey': survey,
+            'stats': stats,
+            'status_text': status_text,
+            'total_participants': total_participants,
         })
         
 admin_site = KTXAdminSite(name='ktx_admin')
@@ -460,3 +521,54 @@ class IssueReportAdmin(admin.ModelAdmin):
             self.message_user(request, "Vui lòng nhập phản hồi trước khi đánh dấu đã xử lý.", level='error')
             return
         super().save_model(request, obj, form, change)
+        
+@admin.register(Survey, site=admin_site)
+class SurveyAdmin(admin.ModelAdmin):
+    list_display = ['title', 'start_date', 'end_date', 'is_active', 'created_at', 'stats_link']
+    list_filter = ['is_active', 'start_date']
+    search_fields = ['title', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'notification']
+    filter_horizontal = ['questions']  # Hiển thị checklist cho questions
+    actions = ['end_survey']
+
+    def stats_link(self, obj):
+        return format_html('<a href="/admin/survey-stats/{}">Xem thống kê</a>', obj.id)
+    stats_link.short_description = 'Thống kê'
+
+    def end_survey(self, request, queryset):
+        queryset.update(is_active=False)
+        self.message_user(request, "Đã kết thúc các khảo sát được chọn.")
+    end_survey.short_description = "Kết thúc khảo sát"
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:  # Chỉ chạy khi tạo mới
+            notification = Notification.objects.create(
+                title=f"{obj.title} - Khảo sát mới",
+                content=f"Vui lòng tham gia khảo sát {obj.title}.",
+                notification_type='NORMAL',
+                target_type='ALL'
+            )
+            obj.notification = notification
+            obj.save(update_fields=['notification'])
+            print(f"Notification created for survey {obj.title} with ID {notification.id}")
+            # Tạo UserNotification cho tất cả sinh viên
+            students = Student.objects.all()
+            for student in students:
+                UserNotification.objects.create(student=student, notification=notification)
+
+@admin.register(SurveyQuestion, site=admin_site)
+class SurveyQuestionAdmin(admin.ModelAdmin):
+    list_display = ['content', 'answer_type']
+    list_filter = ['answer_type']
+    search_fields = ['content']
+
+@admin.register(SurveyResponse, site=admin_site)
+class SurveyResponseAdmin(admin.ModelAdmin):
+    list_display = ['student_name', 'survey', 'question', 'rating', 'text_answer', 'created_at']
+    list_filter = ['survey', 'question__answer_type']
+    search_fields = ['student__full_name', 'student__student_id', 'text_answer']
+
+    def student_name(self, obj):
+        return f"{obj.student.full_name} ({obj.student.student_id})"
+    student_name.short_description = 'Sinh viên'

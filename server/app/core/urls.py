@@ -20,6 +20,9 @@ router.register(r'support-requests', views.SupportRequestViewSet)
 router.register(r'payment-methods', views.PaymentMethodViewSet)
 router.register(r'payment-transactions', views.PaymentTransactionViewSet)
 router.register(r'issue-reports', views.IssueReportViewSet, basename='issue-report')
+router.register(r'surveys', views.SurveyViewSet, basename='survey')
+router.register(r'survey-responses', views.SurveyResponseViewSet, basename='survey-response')
+router.register(r'survey-questions', views.SurveyQuestionViewSet, basename='survey-question')
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),

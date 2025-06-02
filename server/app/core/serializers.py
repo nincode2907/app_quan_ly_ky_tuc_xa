@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from core import models
+from django.utils import timezone
 import cloudinary.uploader
 
 class FacultySerializer(serializers.ModelSerializer):
@@ -166,3 +167,67 @@ class IssueReportSerializer(serializers.ModelSerializer):
             'response', 'student', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'status', 'response', 'student', 'created_at', 'updated_at']
+        
+class SurveyQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SurveyQuestion
+        fields = ['id', 'content', 'answer_type']
+
+class SurveyResponseSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+    question = serializers.PrimaryKeyRelatedField(queryset=models.SurveyQuestion.objects.all())
+
+    class Meta:
+        model = models.SurveyResponse
+        fields = ['id', 'student', 'survey', 'question', 'rating', 'text_answer', 'created_at']
+        read_only_fields = ['id', 'student', 'created_at']
+
+    def validate(self, data):
+        question = data['question'] 
+        if question.answer_type == 'RATING':
+            if data.get('rating') is None or data['rating'] < 1 or data['rating'] > 5:
+                raise serializers.ValidationError({'rating': 'Điểm đánh giá phải từ 1 đến 5.'})
+        elif question.answer_type == 'TEXT':
+            if not data.get('text_answer'):
+                raise serializers.ValidationError({'text_answer': 'Câu trả lời văn bản là bắt buộc.'})
+        return data
+
+class SurveySerializer(serializers.ModelSerializer):
+    questions = SurveyQuestionSerializer(many=True, read_only=True)
+    is_completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Survey
+        fields = [
+             'id', 'title', 'description', 'start_date', 'end_date',
+            'is_active', 'questions', 'is_completed', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+        
+    def get_is_completed(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+
+        try:
+            student = request.user.students
+        except models.Student.DoesNotExist:
+            return False
+
+        total_questions = obj.questions.count()
+        if total_questions == 0:
+            return False
+
+        response_count = models.SurveyResponse.objects.filter(
+            student=student,
+            survey=obj
+        ).count()
+
+        return response_count == total_questions
+
+    def validate(self, data):
+        if data['end_date'] <= data['start_date']:
+            raise serializers.ValidationError({'end_date': 'Thời gian kết thúc phải sau thời gian bắt đầu.'})
+        if data['end_date'] < timezone.now() and data.get('is_active', True):
+            raise serializers.ValidationError({'is_active': 'Không thể kích hoạt khảo sát đã kết thúc.'})
+        return data

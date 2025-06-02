@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import FavoriteRoom, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import FavoriteRoom, IssueReport, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf
 from .services.create_otp import OTPService
@@ -450,6 +450,38 @@ class PaymentTransactionViewSet(viewsets.ViewSet, generics.ListAPIView, generics
                 'bill__student__room__room_type',
                 'bill__student__room__building__area').order_by('id')
         return PaymentTransaction.objects.filter(bill__student__user=self.request.user).select_related('bill__student__user')
+    
+class IssueReportViewSet(viewsets.ModelViewSet):
+    queryset = IssueReport.objects.all()
+    serializer_class = serializers.IssueReportSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('student')
+        if not self.request.user.is_admin:
+            try:
+                student = self.request.user.students
+                queryset = queryset.filter(student=student)
+            except Student.DoesNotExist:
+                return queryset.none()
+        return queryset
+
+    def perform_create(self, serializer):
+        try:
+            student = self.request.user.students
+            serializer.save(student=student)
+        except Student.DoesNotExist:
+            raise ValidationError("Không tìm thấy thông tin sinh viên.")
+
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
+    def resolve(self, request, pk=None):
+        report = self.get_object()
+        if report.status == 'RESOLVED':
+            return Response({"error": "Phản ánh đã được xử lý."}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_text = request.data.get('response')
+        if not response_text:
+            return Response({"error": "Vui lòng cung cấp phản hồi."}, status=status.HTTP_400_BAD_REQUEST)
     
 # account
 # /api/user/change_password/

@@ -8,7 +8,7 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm, SupportRequestAdminForm
 from django.db.models import Count, Sum
-from .models import SupportRequest, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
+from .models import SupportRequest, IssueReport, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -431,3 +431,32 @@ class SupportRequestAdmin(admin.ModelAdmin):
             )
 
             self.message_user(request, f"Đã xử lý yêu cầu của {obj.student.full_name}.")
+            
+@admin.register(IssueReport, site=admin_site)
+class IssueReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'student_name', 'report_type', 'status', 'created_at']
+    list_filter = ['report_type', 'status', 'student']
+    search_fields = ['title', 'description', 'student__full_name', 'student__student_id']
+    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['status']
+    actions = ['mark_as_resolved']
+
+    def student_name(self, obj):
+        return f"{obj.student.full_name} ({obj.student.student_id})"
+    student_name.short_description = 'Sinh viên'
+
+    def mark_as_resolved(self, request, queryset):
+        queryset.update(status='RESOLVED')
+        self.message_user(request, "Đã đánh dấu các phản ánh được chọn là đã xử lý.")
+    mark_as_resolved.short_description = "Đánh dấu là đã xử lý"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('student')
+
+    def save_model(self, request, obj, form, change):
+        if 'response' in form.changed_data and not obj.response:
+            obj.response = form.cleaned_data['response']
+        if obj.status == 'RESOLVED' and not obj.response:
+            self.message_user(request, "Vui lòng nhập phản hồi trước khi đánh dấu đã xử lý.", level='error')
+            return
+        super().save_model(request, obj, form, change)

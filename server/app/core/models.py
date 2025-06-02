@@ -445,6 +445,31 @@ class PaymentTransaction(models.Model):
     def __str__(self):
         return f"Giao dịch {self.transaction_id} - {self.status}"
     
+class IssueReport(models.Model):
+    REPORT_TYPE_CHOICES = (
+        ('REPAIR', 'Yêu cầu sửa chữa'),
+        ('ISSUE', 'Báo cáo sự cố'),
+    )
+    STATUS_CHOICES = (
+        ('PENDING', 'Chưa xử lý'),
+        ('RESOLVED', 'Đã xử lý'),
+    )
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='issue_reports')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    response = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.student.full_name} ({self.get_status_display()})"
+    
 class Message(models.Model):
     STATUS_CHOICES = (
         ("PENDING_AI", "Đang chờ AI"),

@@ -155,3 +155,14 @@ class FavoriteRoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FavoriteRoom
         fields = ['id', 'student', 'room', 'created_at']
+        
+class IssueReportSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+
+    class Meta:
+        model = models.IssueReport
+        fields = [
+            'id', 'title', 'description', 'report_type', 'status',
+            'response', 'student', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'status', 'response', 'student', 'created_at', 'updated_at']

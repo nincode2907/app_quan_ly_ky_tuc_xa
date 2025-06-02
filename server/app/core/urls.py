@@ -19,6 +19,7 @@ router.register(r'notifications', views.UserNotificationsViewSet)
 router.register(r'support-requests', views.SupportRequestViewSet)
 router.register(r'payment-methods', views.PaymentMethodViewSet)
 router.register(r'payment-transactions', views.PaymentTransactionViewSet)
+router.register(r'issue-reports', views.IssueReportViewSet, basename='issue-report')
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),

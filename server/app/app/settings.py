@@ -20,8 +20,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = config('DEBUG_MODE', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY', cast=str)
 ALLOWED_HOSTS = ['*']
-# MY_DOMAIN = "www.pythonanywhere.com"
-MY_DOMAIN = "2d14-2402-800-63a7-95fc-7cd6-d3d1-aef-358f.ngrok-free.app"
+MY_DOMAIN = "www.pythonanywhere.com"
+# MY_DOMAIN = "9ff0-2402-800-63a7-95fc-a84b-2c0f-5828-55a1.ngrok-free.app"
 
 AUTH_USER_MODEL = 'core.User'
 
@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'channels',
     'drf_yasg',
+    'django.contrib.humanize',
 ]
 
 MIDDLEWARE = [

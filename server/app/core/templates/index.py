@@ -3,6 +3,7 @@ templates = {
     "a_room_occupancy": "admin/room_occupancy.html",
     "a_survey_stats": "admin/survey_stats.html",
     "a_survey_404": "admin/survey_404.html",
+    "a_bill_stats": "admin/bill_stats.html",
     
     "e_bill_notification": "email/bill_notification.html",
     "e_notification": "email/notification.html",

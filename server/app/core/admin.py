@@ -17,6 +17,7 @@ import requests
 import os
 from .templates import index
 from django.db.models import Avg, Count
+from django.db.models import Q
 
 # Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
@@ -29,7 +30,8 @@ class KTXAdminSite(admin.AdminSite):
         custom_urls = [
             path('ktx-stats/', self.admin_view(self.ktx_stats)),
             path('room-occupancy/', self.admin_view(self.room_occupancy)),
-            path('survey-stats/<int:survey_id>/', self.admin_view(self.survey_stats_view), name='survey-stats')
+            path('survey-stats/<int:survey_id>/', self.admin_view(self.survey_stats_view), name='survey-stats'),
+            path('bill-stats/', self.admin_view(self.bill_statistics_view), name='bill-stats'),
         ]
         
         # admin_view(): Bắt buộc để kiểm tra quyền truy cập
@@ -113,6 +115,79 @@ class KTXAdminSite(admin.AdminSite):
             'stats': stats,
             'status_text': status_text,
             'total_participants': total_participants,
+        })
+        
+    def bill_statistics_view(self, request):
+        # Default parameters
+        option = request.GET.get('option', 'by_building')
+        filter_type = request.GET.get('filter_type', 'month_year')
+        try:
+            year = int(request.GET.get('year', timezone.now().year))
+            if filter_type == 'month_year':
+                month = int(request.GET.get('month', timezone.now().month))
+            else:
+                month = None
+        except (ValueError, TypeError):
+            year = timezone.now().year
+            month = timezone.now().month if filter_type == 'month_year' else None
+
+        stats = []
+        
+        # Common filter for bills
+        bill_filter = Q()
+        if filter_type == 'month_year':
+            bill_filter = Q(rooms__contracts__student__bills__month=month, 
+                            rooms__contracts__student__bills__year=year)
+        else:
+            bill_filter = Q(rooms__contracts__student__bills__year=year)
+
+        # Process statistics based on option
+        if option == 'by_building':
+            buildings = Building.objects.select_related('area').annotate(
+                total_amount=Sum('rooms__contracts__student__bills__amount', filter=bill_filter),
+                bill_count=Count('rooms__contracts__student__bills', filter=bill_filter),
+                avg_amount=Avg('rooms__contracts__student__bills__amount', filter=bill_filter),
+                room_count=Count('rooms', filter=bill_filter, distinct=True)
+            )
+            for building in buildings:
+                stats.append({
+                    'name': f"{building.name} ({building.area.name})",
+                    'area': building.area.name,
+                    'gender': building.get_gender_display(),
+                    'total_amount': building.total_amount or 0,
+                    'bill_count': building.bill_count or 0,
+                    'avg_amount': round(building.avg_amount or 0, 2),
+                    'room_count': building.room_count or 0
+                })
+
+        elif option == 'by_room_type':
+            room_types = RoomType.objects.annotate(
+                total_amount=Sum('rooms__contracts__student__bills__amount', filter=bill_filter),
+                bill_count=Count('rooms__contracts__student__bills', filter=bill_filter),
+                avg_amount=Avg('rooms__contracts__student__bills__amount', filter=bill_filter),
+                room_count=Count('rooms', filter=bill_filter, distinct=True),
+                total_rooms=Count('rooms', distinct=True)
+            )
+            for room_type in room_types:
+                stats.append({
+                    'name': f"{room_type.name} ({room_type.capacity} người)",
+                    'capacity': room_type.capacity,
+                    'price': room_type.price,
+                    'description': room_type.description,
+                    'total_amount': room_type.total_amount or 0,
+                    'bill_count': room_type.bill_count or 0,
+                    'avg_amount': round(room_type.avg_amount or 0, 2),
+                    'room_count': room_type.room_count or 0,
+                    'total_rooms': room_type.total_rooms or 0
+                })
+
+        return TemplateResponse(request, index.templates['a_bill_stats'], {
+            'stats': stats,
+            'option': option,
+            'filter_type': filter_type,
+            'month': month,
+            'year': year,
+            'has_data': len(stats) > 0
         })
         
 admin_site = KTXAdminSite(name='ktx_admin')

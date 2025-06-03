@@ -1,0 +1,106 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+<style>
+    .student-list-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+    .student-list-container h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .back-link {
+        display: block;
+        text-align: center;
+        margin-bottom: 20px;
+        font-size: 16px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .back-link:hover {
+        text-decoration: underline;
+    }
+    .student-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .student-table th, .student-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    .student-table th {
+        background-color: rgb(0, 174, 209);
+    }
+    .export-buttons {
+        margin-top: 40px;
+        text-align: center;
+    }
+    .export-buttons button {
+        padding: 5px 10px;
+        margin-right: 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .export-buttons button:hover {
+        background-color: #0056b3;
+    }
+    .navigation-link {
+        display: block;
+        text-align: right;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .navigation-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="student-list-container">
+    <a href="{% url 'admin:navigation' %}" class="navigation-link">Qua trang chức năng</a>
+    <h1>Danh sách sinh viên - Trạng thái: {{ status }}</h1>
+    <a href="{% url 'admin:dashboard' %}" class="back-link">Quay lại Dashboard</a>
+    <p>Thời gian cập nhật: {{ current_time }}</p>
+    <table class="student-table">
+        <thead>
+            <tr>
+                <th>Họ và tên</th>
+                <th>Mã sinh viên</th>
+                <th>Trạng thái</th>
+                <th>Thời gian check cuối</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in student_list %}
+            <tr>
+                <td>{{ student.full_name }}</td>
+                <td>{{ student.student_id }}</td>
+                <td>{{ student.status }}</td>
+                <td>{{ student.last_check_time|default:'N/A' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="export-buttons">
+        <button onclick="exportToPDF()">Xuất PDF</button>
+        <button onclick="exportToExcel()">Xuất Excel</button>
+    </div>
+    <script>
+        function exportToPDF() {
+            window.location.href = "{% url 'admin:export_pdf' %}?status=ALL&date=" + new Date().toISOString().split('T')[0];
+        }
+
+        function exportToExcel() {
+            window.location.href = "{% url 'admin:export_excel' %}?status=ALL&date=" + new Date().toISOString().split('T')[0];
+        }
+    </script>
+</div>
+
+{% endblock %}

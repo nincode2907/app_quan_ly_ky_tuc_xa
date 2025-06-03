@@ -40,12 +40,13 @@
         text-align: left;
     }
     .stats-table th {
-        background-color: #f2f2f2;
+        background-color: rgb(0, 174, 209);
         cursor: pointer;
         position: relative;
+        transition: background-color 0.3s, opacity 0.3s;
     }
     .stats-table th:hover {
-        background-color: #e6e6e6;
+        opacity: 0.8;
     }
     .stats-table th.sort-asc::after {
         content: "↑";
@@ -99,9 +100,20 @@
     .loading.active {
         display: block;
     }
+    .navigation-link {
+        display: block;
+        text-align: right;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .navigation-link:hover {
+        text-decoration: underline;
+    }
 </style>
 
 <div class="stats-container">
+    <a href="{% url 'admin:navigation' %}" class="navigation-link">Qua trang chức năng</a>
     <h1>THỐNG KÊ HÓA ĐƠN</h1>
 
     <div class="filter-form">

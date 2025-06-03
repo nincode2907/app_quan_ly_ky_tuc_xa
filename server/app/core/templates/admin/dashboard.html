@@ -1,0 +1,266 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+    .card-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    .card {
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        flex: 1;
+        margin-right: 10px;
+        text-align: center;
+    }
+    .card:last-child {
+        margin-right: 0;
+    }
+    .card h3 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #333;
+    }
+    .card p {
+        margin: 0;
+        font-size: 24px;
+        font-weight: bold;
+        color: #555;
+    }
+    .card a {
+        display: block;
+        margin-top: 5px;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .card a:hover {
+        text-decoration: underline;
+    }
+    .chart-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    .chart-container {
+        flex: 1;
+        margin-right: 10px;
+        background-color: #fff;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .chart-container:last-child {
+        margin-right: 0;
+    }
+    .checkinout-chart-container {
+        margin-top: 20px;
+        background-color: #fff;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+    }
+    .navigation-link {
+        display: block;
+        text-align: right;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .navigation-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="dashboard-container">
+    <a href="{% url 'admin:navigation' %}" class="navigation-link">Qua trang chức năng</a>
+    <h1>TỔNG QUAN KÝ TÚC XÁ</h1>
+    <p>Thời gian cập nhật: {{ current_time }}</p>
+
+    <!-- Card thống kê -->
+    <div class="card-container">
+        <div class="card">
+            <h3>Tổng số sinh viên</h3>
+            <p>{{ total_students|floatformat:0 }}</p>
+        </div>
+        <div class="card">
+            <h3>Đang ở trong KTX</h3>
+            <p>{{ students_in|floatformat:0 }}</p>
+            <a href="{% url 'admin:student_list' %}?status=CHECK_IN">Xem danh sách</a>
+        </div>
+        <div class="card">
+            <h3>Đang ở ngoài KTX</h3>
+            <p>{{ students_out|floatformat:0 }}</p>
+            <a href="{% url 'admin:student_list' %}?status=CHECK_OUT">Xem danh sách</a>
+        </div>
+    </div>
+
+    <!-- Biểu đồ -->
+    <div class="chart-row">
+        <!-- Biểu đồ tròn: Phân bố IN/OUT -->
+        <div class="chart-container">
+            <h3>Phân bố trạng thái IN/OUT</h3>
+            <canvas id="inOutPieChart"></canvas>
+        </div>
+        <!-- Biểu đồ cột: Số sinh viên theo tòa -->
+        <div class="chart-container">
+            <h3>Số sinh viên theo tòa</h3>
+            {% if students_by_building %}
+                <canvas id="studentsByBuildingChart"></canvas>
+            {% else %}
+                <p>Chưa có dữ liệu sinh viên theo tòa.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Biểu đồ cột: Số lượt check-in/out -->
+    <div class="checkinout-chart-container">
+        <h3>Số lượt Check-in/out</h3>
+        <div style="margin-bottom: 10px;">
+            <label for="timeFilter">Chọn khoảng thời gian:</label>
+            <select id="timeFilter" onchange="updateCheckInOutChart()">
+                <option value="day">Hôm nay</option>
+                <option value="week">Tuần này</option>
+                <option value="month">Tháng này</option>
+            </select>
+        </div>
+        <canvas id="checkInOutChart"></canvas>
+        
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Dữ liệu từ backend
+        const totalStudents = Math.floor({{ total_students }});
+        const studentsIn = Math.floor({{ students_in }});
+        const studentsOut = Math.floor({{ students_out }});
+        const studentsByBuilding = {{ students_by_building|safe }};
+        const checkInOutData = {
+            day: {{ checkinout_day|safe }},
+            week: {{ checkinout_week|safe }},
+            month: {{ checkinout_month|safe }}
+        };
+
+        // Biểu đồ tròn: Phân bố IN/OUT
+        const inOutPieChart = new Chart(document.getElementById('inOutPieChart'), {
+            type: 'pie',
+            data: {
+                labels: ['Đang ở trong KTX', 'Đang ở ngoài KTX'],
+                datasets: [{
+                    data: [studentsIn, studentsOut],
+                    backgroundColor: ['#36A2EB', '#FF6384'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                }
+            }
+        });
+
+        // Biểu đồ cột: Số sinh viên theo tòa
+        if (studentsByBuilding.length > 0) {
+            const studentsByBuildingChart = new Chart(document.getElementById('studentsByBuildingChart'), {
+                type: 'bar',
+                data: {
+                    labels: studentsByBuilding.map(item => item.name),
+                    datasets: [{
+                        label: 'Số sinh viên',
+                        data: studentsByBuilding.map(item => Math.floor(item.student_count)),
+                        backgroundColor: '#36A2EB',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Số sinh viên'
+                            },
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Tòa'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Biểu đồ cột: Số lượt check-in/out
+        let checkInOutChart = null;
+        function updateCheckInOutChart() {
+            const timeFilter = document.getElementById('timeFilter').value;
+            const data = checkInOutData[timeFilter];
+
+            if (checkInOutChart) {
+                checkInOutChart.destroy();
+            }
+
+            checkInOutChart = new Chart(document.getElementById('checkInOutChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Check-in',
+                            data: data.checkin.map(val => Math.floor(val)),
+                            backgroundColor: '#36A2EB',
+                        },
+                        {
+                            label: 'Check-out',
+                            data: data.checkout.map(val => Math.floor(val)),
+                            backgroundColor: '#FF6384',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Số lượt'
+                            },
+                            ticks: {
+                                precision: 0
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: timeFilter === 'day' ? 'Giờ' : 'Ngày'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Khởi tạo biểu đồ check-in/out với giá trị mặc định
+        window.onload = function() {
+            updateCheckInOutChart();
+        };
+    </script>
+</div>
+{% endblock %}

@@ -74,14 +74,6 @@ class Student(models.Model):
     is_blocked = models.BooleanField(default=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='students', blank=True, null=True)
     
-    def save(self, *args, **kwargs):
-        if not self.course:  
-            year_suffix = str(self.year_start)[-2:]
-            faculty_code = self.faculty.code
-            self.course = f"DH{year_suffix}{faculty_code}"
-            
-        super().save(*args, **kwargs)
-            
     def __str__(self):
         return f"{self.full_name} ({self.student_id})"
     
@@ -243,6 +235,9 @@ class QRCode(models.Model):
     is_used = models.BooleanField(default=False)
     image_url = CloudinaryField(blank=True, null=True)
     
+    class Meta:
+        unique_together = ('date',)
+    
     def save(self, *args, **kwargs):
         if not self.image_url: 
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -277,23 +272,45 @@ class QRCode(models.Model):
         return f"{self.qr_token} - {self.date}"
     
 class CheckInOutLog(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="checkinout_logs")
-    check_in_time = models.DateTimeField(blank=True, null=True)
-    check_out_time = models.DateTimeField(blank=True, null=True)
-    date = models.DateField(default=timezone.now)
-    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name="checkinout_logs")
-    
+    STATUS_CHOICES = (
+        ('CHECK_IN', 'Check-in'),
+        ('CHECK_OUT', 'Check-out'),
+    )
+
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name="checkinout_logs")
+    check_time = models.DateTimeField(default=timezone.now)
+    date = models.DateField(editable=False)  # Lấy tự động từ check_time
+    building = models.ForeignKey('Building', on_delete=models.CASCADE, related_name="checkinout_logs")
+    qr_code = models.ForeignKey('QRCode', on_delete=models.CASCADE, related_name="checkinout_logs")  # Liên kết với QRCode
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+
     def save(self, *args, **kwargs):
+        # Lấy date từ check_time
+        self.date = self.check_time.date()
+
+        # Kiểm tra sinh viên bị khóa
         if self.student.is_blocked:
-            raise ValueError(f"Sinh viên {self.student.full_name} đã bị khóa, không thể check-in/out")
+            raise ValidationError(f"Sinh viên {self.student.full_name} đã bị khóa, không thể check-in/out")
+
+        # Kiểm tra giới tính phù hợp với tòa
         if self.student.gender != self.building.gender:
-            raise ValueError(f"Sinh viên {self.student.full_name} ({self.student.gender}) không được phép vào tòa {self.building.name} ({self.building.area.name}) (dành cho {self.building.gender})")
+            raise ValidationError(f"Sinh viên {self.student.full_name} ({self.student.gender}) không được phép vào tòa {self.building.name} ({self.building.area.name}) (dành cho {self.building.gender})")
+
+        # Kiểm tra phòng trong tòa
         if not self.student.room or self.student.room.building != self.building:
-            raise ValueError(f"Sinh viên {self.student.full_name} không có phòng trong tòa {self.building.name} ({self.building.area.name})")
+            raise ValidationError(f"Sinh viên {self.student.full_name} không có phòng trong tòa {self.building.name} ({self.building.area.name})")
+
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
-        return f"{self.student} - {self.date}"
+        return f"{self.student.full_name} - {self.status} - {self.check_time}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['student', 'date']),
+            models.Index(fields=['check_time']),
+        ]
+        ordering = ['-check_time']
     
 class Bill(models.Model):
     STATUS_CHOICES = (

@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import FavoriteRoom, Survey, SurveyResponse,SurveyQuestion, IssueReport, Notification, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import FavoriteRoom, Survey,CheckInOutLog,QRCode, SurveyResponse,SurveyQuestion, IssueReport, Notification, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf, IsAdminCustom
 from .services.create_otp import OTPService
@@ -634,7 +634,63 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
             responses.append(serializer.data)
 
         return Response(responses, status=status.HTTP_201_CREATED)
-    
+   
+class CheckInOutLogViewSet(viewsets.ModelViewSet):
+    queryset = CheckInOutLog.objects.all().select_related('student', 'building', 'qr_code').order_by('-check_time')
+    serializer_class = serializers.CheckInOutLogSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]  # Yêu cầu xác thực người dùng
+
+    @action(detail=False, methods=['post'], url_path='scan')
+    def scan_qr(self, request):
+        try:
+            with transaction.atomic():  # Đảm bảo tính toàn vẹn dữ liệu
+                data = request.data
+                qr_token = data.get('qr_token')
+
+                if not qr_token:
+                    return Response({'status': 'error', 'message': 'Thiếu thông tin qr_token'}, status=status.HTTP_400_BAD_REQUEST)
+
+                try:
+                    student = request.user.students
+                except (Student.DoesNotExist, AttributeError):
+                    return Response({'status': 'error', 'message': 'Không tìm thấy thông tin sinh viên'}, status=status.HTTP_400_BAD_REQUEST)
+
+                today = timezone.now().date()
+                qr_code = QRCode.objects.filter(qr_token=qr_token, date=today).first()
+                if not qr_code:
+                    return Response({'status': 'error', 'message': 'Mã QR không hợp lệ hoặc hết hạn'}, status=status.HTTP_400_BAD_REQUEST)
+
+                if qr_code.is_used:
+                    return Response({'status': 'error', 'message': 'Mã QR đã được sử dụng'}, status=status.HTTP_400_BAD_REQUEST)
+
+                building = student.room.building if student.room else None
+                if not building:
+                    return Response({'status': 'error', 'message': 'Sinh viên chưa có phòng'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Kiểm tra log gần nhất của sinh viên trong ngày
+                last_log = CheckInOutLog.objects.filter(student=student, date=today).order_by('-check_time').first()
+                new_status = 'CHECK_IN' if not last_log or last_log.status == 'CHECK_OUT' else 'CHECK_OUT'
+
+                # Tạo log mới
+                log = CheckInOutLog.objects.create(
+                    student=student,
+                    building=building,
+                    qr_code=qr_code,
+                    status=new_status,
+                    check_time=timezone.now()
+                )
+
+                serializer = serializers.CheckInOutLogSerializer(log)
+                return Response({
+                    'status': 'success',
+                    'message': f'{new_status.title()} thành công',
+                    'action': new_status.lower(),
+                    'data': serializer.data
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+         
 # account
 # /api/user/change_password/
 @swagger_auto_schema(

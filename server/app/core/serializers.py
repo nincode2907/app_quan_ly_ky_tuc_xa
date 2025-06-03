@@ -88,17 +88,18 @@ class QRCodeSerializer(serializers.ModelSerializer):
         fields = ['id', 'qr_token', 'date', 'is_used', 'image_url']
 
     def get_image_url(self, obj):
-        if obj.image:
-            return cloudinary.utils.cloudinary_url(obj.image.public_id, secure=True)[0]
+        if obj.image_url:
+            return cloudinary.utils.cloudinary_url(obj.image_url.public_id, secure=True)[0]
         return None
     
 class CheckInOutLogSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
     building = BuildingSerializer(read_only=True)
+    qr_code = QRCodeSerializer(read_only=True)  # Serialize đối tượng QRCode
 
     class Meta:
         model = models.CheckInOutLog
-        fields = ['id', 'student', 'check_in_time', 'check_out_time', 'date', 'building']
+        fields = ['id', 'student', 'check_time', 'date', 'building', 'status', 'qr_code']
 
 class BillSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)

@@ -23,6 +23,7 @@ router.register(r'issue-reports', views.IssueReportViewSet, basename='issue-repo
 router.register(r'surveys', views.SurveyViewSet, basename='survey')
 router.register(r'survey-responses', views.SurveyResponseViewSet, basename='survey-response')
 router.register(r'survey-questions', views.SurveyQuestionViewSet, basename='survey-question')
+router.register(r'checkinout-logs', views.CheckInOutLogViewSet, basename='checkinout-log')
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),

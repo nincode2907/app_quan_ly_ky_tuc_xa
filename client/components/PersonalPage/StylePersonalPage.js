@@ -18,7 +18,7 @@ export default StyleSheet.create({
     },
     slogan: {
         color: "#E3C7A5",
-        fontSize: 12,
+        fontSize: 13,
     },
     searchBar: {
         backgroundColor: "#fff",
@@ -53,6 +53,7 @@ export default StyleSheet.create({
     section: {
         marginTop: 15,
         backgroundColor: '#fff',
+
     },
     sectionHeader: {
         backgroundColor: '#1E319D',
@@ -60,7 +61,7 @@ export default StyleSheet.create({
     },
     sectionTitle: {
         color: '#E3C7A5',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 'bold',
     },
 

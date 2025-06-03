@@ -1,10 +1,34 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+// import { BarCodeScanner } from 'expo-barcode-scanner';
 
 const HomeQR = () => {
     const navigation = useNavigation();
+    const [hasPermission, setHasPermission] = useState(null);
+    const [scanned, setScanned] = useState(false);
+
+    // useEffect(() => {
+    //     (async () => {
+    //         const { status } = await BarCodeScanner.requestPermissionsAsync();
+    //         setHasPermission(status === 'granted');
+    //     })();
+    // }, []);
+
+    const handleBarCodeScanned = ({ type, data }) => {
+        setScanned(true);
+        Alert.alert('QR Code Scanned', `Loại: ${type}\nNội dung: ${data}`);
+        // Xử lý dữ liệu tại đây (ví dụ: điều hướng hoặc API)
+    };
+
+    if (hasPermission === null) {
+        return <Text>Đang yêu cầu quyền truy cập camera...</Text>;
+    }
+
+    if (hasPermission === false) {
+        return <Text>Bạn chưa cho phép truy cập camera.</Text>;
+    }
 
     return (
         <View style={styles.container}>
@@ -16,12 +40,21 @@ const HomeQR = () => {
                 <View style={{ width: 28 }} />
             </View>
 
-            <View style={styles.qrBox}>
-                <View style={styles.qrLine} />
-            </View>
+            {/* <View style={styles.qrBox}>
+                <BarCodeScanner
+                    onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+                    style={StyleSheet.absoluteFillObject}
+                />
+            </View> */}
+
+            {scanned && (
+                <TouchableOpacity onPress={() => setScanned(false)}>
+                    <Text style={{ color: '#00f' }}>Quét lại</Text>
+                </TouchableOpacity>
+            )}
 
             <Text style={styles.hint}>
-                Giữ tay bạn ổn định và ở khoảng vừa phải với mã QR
+                Giữ điện thoại ổn định và cách mã QR một khoảng vừa phải
             </Text>
         </View>
     );
@@ -52,17 +85,11 @@ const styles = StyleSheet.create({
     qrBox: {
         width: 260,
         height: 260,
+        overflow: 'hidden',
+        borderRadius: 24,
         borderColor: '#999',
         borderWidth: 4,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
         marginBottom: 32,
-    },
-    qrLine: {
-        width: '80%',
-        height: 4,
-        backgroundColor: '#999',
     },
     hint: {
         color: '#aaa',

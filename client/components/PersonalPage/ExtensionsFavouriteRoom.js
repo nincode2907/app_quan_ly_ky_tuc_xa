@@ -11,6 +11,15 @@ const ExtensionsFavouriteRoom = () => {
     const [likedRooms, setLikedRooms] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const getToken = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            return token;
+        } catch (error) {
+            console.error('Lỗi khi lấy token:', error);
+            return null;
+        }
+    };
 
     const loadFavoriteRooms = async () => {
         try {

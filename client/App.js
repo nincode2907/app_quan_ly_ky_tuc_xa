@@ -30,6 +30,7 @@ import ExtensionsPayBillsDetails from './components/PersonalPage/ExtensionsPayBi
 import ExtensionsFavouriteRoom from './components/PersonalPage/ExtensionsFavouriteRoom';
 import ExtensionsNoticeOfAbsence from './components/PersonalPage/ExtensionsNoticeOfAbsence';
 import ExtensionsServiceSurvey from './components/PersonalPage/ExtensionsServiceSurvey';
+import ExtensionsServiceSurveyDetail from './components/PersonalPage/ExtensionsServiceSurveyDetail';
 import RepairSupport from './components/PersonalPage/RepairSupport';
 import RepairSupportDetails from './components/PersonalPage/RepairSupportDetails';
 import ReportSupport from "./components/PersonalPage/ReportSupport";
@@ -174,7 +175,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: 'bold' }}>
               Thông tin chi tiết phòng
             </Text>
           ),
@@ -188,7 +189,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Điền vào mẫu đổi phòng
             </Text>
           ),
@@ -201,7 +202,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Yêu cầu đổi phòng
             </Text>
           ),
@@ -215,7 +216,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Thanh toán hóa đơn
             </Text>
           ),
@@ -230,7 +231,7 @@ const StackNavigator = () => {
           headerTintColor: "#fff",
           headerTitle: () => (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
                 Thanh toán hóa đơn
               </Text>
             </View>
@@ -245,7 +246,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Danh sách phòng yêu thích
             </Text>
           ),
@@ -258,7 +259,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#E3C7A5",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
               Thông báo vắng
             </Text>
           ),
@@ -271,8 +272,22 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#E3C7A5",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
               Khảo sát dịch vụ
+            </Text>
+          ),
+        }}
+      />
+
+      <Stack.Screen
+        name="extensionsServiceSurveyDetail"
+        component={ExtensionsServiceSurveyDetail}
+        options={{
+          headerStyle: { backgroundColor: "#1E319D", height: 100 },
+          headerTintColor: "#E3C7A5",
+          headerTitle: () => (
+            <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
+              Chi tiết khảo sát dịch vụ
             </Text>
           ),
         }}
@@ -286,7 +301,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Yêu cầu sửa chữa
             </Text>
           ),
@@ -299,7 +314,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Điền vào mẫu yêu cầu sửa chữa
             </Text>
           ),
@@ -312,7 +327,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Báo cáo sự cố
             </Text>
           ),
@@ -326,7 +341,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Điền vào mẫu báo cáo sự cố
             </Text>
           ),

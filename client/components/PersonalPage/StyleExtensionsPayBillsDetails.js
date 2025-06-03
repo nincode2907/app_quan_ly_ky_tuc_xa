@@ -127,6 +127,7 @@ export default StyleSheet.create({
         padding: 16,
         borderRadius: 10,
         elevation: 2,
+        marginBottom: 100,
     },
 
     emailButton: {
@@ -185,9 +186,12 @@ export default StyleSheet.create({
 
     payText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
         marginLeft: 8,
+    },
+    disabledButton: {
+        backgroundColor: '#999999',
     },
 
     overlay: {

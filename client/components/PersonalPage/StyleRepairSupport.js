@@ -59,7 +59,7 @@ export default StyleSheet.create({
 
     supportButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
     },
 });

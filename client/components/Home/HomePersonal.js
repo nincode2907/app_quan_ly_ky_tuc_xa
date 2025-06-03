@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useRoute } from '@react-navigation/native';
-import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { MyDispatchContext } from '../../contexts/Contexts';
@@ -17,6 +17,7 @@ const HomePersonal = () => {
     const dispatch = useContext(MyDispatchContext);
     const [userInfo, setUserInfo] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const getStudentInfo = async () => {
         try {
@@ -32,7 +33,7 @@ const HomePersonal = () => {
                 pwd: '*********',
                 gender: student.gender === 'male' ? 'Nam' : (student.gender === 'female' ? 'Nữ' : 'Khác'),
                 birthday: student.date_of_birth,
-                avatar: student.user.avatar,
+                avatar: student.user.avatar || 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1744530660/a22aahwkjiwomfmvvmaj.png',
                 faculty: student.faculty.name,
                 student_id: student.student_id,
                 room: student.room,
@@ -42,6 +43,7 @@ const HomePersonal = () => {
             console.error("Lỗi khi lấy thông tin sinh viên:", err);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -71,6 +73,13 @@ const HomePersonal = () => {
             });
         }
     };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await getStudentInfo();  // Gọi lại hàm lấy dữ liệu
+        setRefreshing(false);
+    };
+
 
 
     const logout = async () => {
@@ -111,7 +120,9 @@ const HomePersonal = () => {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={StylePersonal.scroll}>
+            <ScrollView contentContainerStyle={StylePersonal.scroll} refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }>
                 <View style={StylePersonal.avatarContainer}>
                     <Image source={{ uri: userInfo.avatar }} style={StylePersonal.avatar} />
                     <Text style={StylePersonal.name}>{userInfo.name}</Text>

@@ -18,13 +18,13 @@ export default StyleSheet.create({
     },
     logoText: {
         color: '#E3C7A5',
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 'bold',
         textAlign: 'center'
     },
     loginText: {
         color: '#1E319D',
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: 'bold',
         marginTop: 60,
         marginLeft: 20,
@@ -49,7 +49,7 @@ export default StyleSheet.create({
       },      
     loginButtonText: {
         color: "#E3C7A5",
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: "bold",
     },
     googleLogin: {
@@ -72,7 +72,7 @@ export default StyleSheet.create({
     },
     googleLoginText: {
         color: "#B0B0B0",
-        fontSize: 15,
+        fontSize: 14,
     },
     signupContainer: {
         flexDirection: 'row',
@@ -82,7 +82,7 @@ export default StyleSheet.create({
       },
       signupPrompt: {
         color: '#B0B0B0',
-        fontSize: 16,
+        fontSize: 14,
       },
       signupLink: {
         color: '#1E319D',

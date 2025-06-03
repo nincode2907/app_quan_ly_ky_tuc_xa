@@ -48,44 +48,48 @@ const ParsonalPage = () => {
                         <Text style={styles.sectionTitle}>Tiện ích</Text>
                     </View>
                     <View style={styles.grid}>
-                        <TouchableOpacity onPress={() => nav.navigate("extensionsServiceSurvey")}>
-                            <View style={styles.gridItem}>
-                                <Image
-                                    source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889567/KTX-SV/wtxxnfhkzbjkolsenqwv.png" }}
-                                    style={styles.imgIcon}
-                                />
-                                <Text style={styles.itemText}>Khảo sát dịch vụ</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => nav.navigate("extensionsNoticeOfAbsence")}>
-                            <View style={styles.gridItem}>
-                                <Image
-                                    source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889789/KTX-SV/lxyncotabeo15y8vu5v1.png" }}
-                                    style={styles.imgIcon}
-                                />
-                                <Text style={styles.itemText}>Thông báo vắng</Text>
-                            </View>
-                        </TouchableOpacity>
+                        <View>
+                            <TouchableOpacity onPress={() => nav.navigate("extensionsServiceSurvey")}>
+                                <View style={styles.gridItem}>
+                                    <Image
+                                        source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889567/KTX-SV/wtxxnfhkzbjkolsenqwv.png" }}
+                                        style={styles.imgIcon}
+                                    />
+                                    <Text style={styles.itemText}>Khảo sát</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => nav.navigate("extensionsNoticeOfAbsence")}>
+                                <View style={styles.gridItem}>
+                                    <Image
+                                        source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889789/KTX-SV/lxyncotabeo15y8vu5v1.png" }}
+                                        style={styles.imgIcon}
+                                    />
+                                    <Text style={styles.itemText}>Xin vắng</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
 
 
-                        <TouchableOpacity onPress={() => nav.navigate("payBills")}>
-                            <View style={styles.gridItem}>
-                                <Image
-                                    source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745909869/KTX-SV/wcfq6ald0jcdhqqhob9z.png" }}
-                                    style={styles.imgIcon}
-                                />
-                                <Text style={styles.itemText}>Thanh toán</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => nav.navigate("extensionsFavouriteRoom")}>
-                            <View style={styles.gridItem}>
-                                <Image
-                                    source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889549/KTX-SV/ahqohk9uqeugwvrodwvt.png" }}
-                                    style={styles.imgIcon}
-                                />
-                                <Text style={styles.itemText}>Phòng yêu thích</Text>
-                            </View>
-                        </TouchableOpacity>
+                        <View>
+                            <TouchableOpacity onPress={() => nav.navigate("payBills")}>
+                                <View style={styles.gridItem}>
+                                    <Image
+                                        source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745909869/KTX-SV/wcfq6ald0jcdhqqhob9z.png" }}
+                                        style={styles.imgIcon}
+                                    />
+                                    <Text style={styles.itemText}>Thanh toán</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => nav.navigate("extensionsFavouriteRoom")}>
+                                <View style={styles.gridItem}>
+                                    <Image
+                                        source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889549/KTX-SV/ahqohk9uqeugwvrodwvt.png" }}
+                                        style={styles.imgIcon}
+                                    />
+                                    <Text style={styles.itemText}>Phòng yêu thích</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
 
                     </View>
                 </View>

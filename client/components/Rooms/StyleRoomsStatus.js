@@ -9,7 +9,7 @@ export default StyleSheet.create({
     chipContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 10,
+        gap: 5,
         marginBottom: 16,
     },
     chip: {

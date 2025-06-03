@@ -10,3 +10,7 @@ class IsAdminOrSelf(permissions.BasePermission):
         if hasattr(obj, 'student') and obj.student.user:
             return obj.student.user == request.user
         return False
+    
+class IsAdminCustom(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and getattr(request.user, 'is_admin', False)

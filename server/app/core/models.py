@@ -74,14 +74,6 @@ class Student(models.Model):
     is_blocked = models.BooleanField(default=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='students', blank=True, null=True)
     
-    def save(self, *args, **kwargs):
-        if not self.course:  
-            year_suffix = str(self.year_start)[-2:]
-            faculty_code = self.faculty.code
-            self.course = f"DH{year_suffix}{faculty_code}"
-            
-        super().save(*args, **kwargs)
-            
     def __str__(self):
         return f"{self.full_name} ({self.student_id})"
     
@@ -243,6 +235,9 @@ class QRCode(models.Model):
     is_used = models.BooleanField(default=False)
     image_url = CloudinaryField(blank=True, null=True)
     
+    class Meta:
+        unique_together = ('date',)
+    
     def save(self, *args, **kwargs):
         if not self.image_url: 
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -277,23 +272,45 @@ class QRCode(models.Model):
         return f"{self.qr_token} - {self.date}"
     
 class CheckInOutLog(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="checkinout_logs")
-    check_in_time = models.DateTimeField(blank=True, null=True)
-    check_out_time = models.DateTimeField(blank=True, null=True)
-    date = models.DateField(default=timezone.now)
-    building = models.ForeignKey(Building, on_delete=models.CASCADE, related_name="checkinout_logs")
-    
+    STATUS_CHOICES = (
+        ('CHECK_IN', 'Check-in'),
+        ('CHECK_OUT', 'Check-out'),
+    )
+
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name="checkinout_logs")
+    check_time = models.DateTimeField(default=timezone.now)
+    date = models.DateField(editable=False)  # Lấy tự động từ check_time
+    building = models.ForeignKey('Building', on_delete=models.CASCADE, related_name="checkinout_logs")
+    qr_code = models.ForeignKey('QRCode', on_delete=models.CASCADE, related_name="checkinout_logs")  # Liên kết với QRCode
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+
     def save(self, *args, **kwargs):
+        # Lấy date từ check_time
+        self.date = self.check_time.date()
+
+        # Kiểm tra sinh viên bị khóa
         if self.student.is_blocked:
-            raise ValueError(f"Sinh viên {self.student.full_name} đã bị khóa, không thể check-in/out")
+            raise ValidationError(f"Sinh viên {self.student.full_name} đã bị khóa, không thể check-in/out")
+
+        # Kiểm tra giới tính phù hợp với tòa
         if self.student.gender != self.building.gender:
-            raise ValueError(f"Sinh viên {self.student.full_name} ({self.student.gender}) không được phép vào tòa {self.building.name} ({self.building.area.name}) (dành cho {self.building.gender})")
+            raise ValidationError(f"Sinh viên {self.student.full_name} ({self.student.gender}) không được phép vào tòa {self.building.name} ({self.building.area.name}) (dành cho {self.building.gender})")
+
+        # Kiểm tra phòng trong tòa
         if not self.student.room or self.student.room.building != self.building:
-            raise ValueError(f"Sinh viên {self.student.full_name} không có phòng trong tòa {self.building.name} ({self.building.area.name})")
+            raise ValidationError(f"Sinh viên {self.student.full_name} không có phòng trong tòa {self.building.name} ({self.building.area.name})")
+
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
-        return f"{self.student} - {self.date}"
+        return f"{self.student.full_name} - {self.status} - {self.check_time}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['student', 'date']),
+            models.Index(fields=['check_time']),
+        ]
+        ordering = ['-check_time']
     
 class Bill(models.Model):
     STATUS_CHOICES = (
@@ -370,6 +387,10 @@ class UserNotification(models.Model):
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        unique_together = ('student', 'notification')
+        ordering = ['-created_at']
+    
     def __str__(self):
         return f"{self.student.user.email} - {self.notification.title} - {self.is_read}"
     
@@ -444,6 +465,96 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f"Giao dịch {self.transaction_id} - {self.status}"
+    
+class IssueReport(models.Model):
+    REPORT_TYPE_CHOICES = (
+        ('REPAIR', 'Yêu cầu sửa chữa'),
+        ('ISSUE', 'Báo cáo sự cố'),
+    )
+    STATUS_CHOICES = (
+        ('PENDING', 'Chưa xử lý'),
+        ('RESOLVED', 'Đã xử lý'),
+    )
+
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='issue_reports')
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    response = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.student.full_name}"
+    
+class Survey(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    questions = models.ManyToManyField('SurveyQuestion', related_name='surveys', blank=True)
+    notification = models.ForeignKey(Notification, on_delete=models.SET_NULL, null=True, blank=True, related_name='surveys')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def clean(self):
+        if self.end_date <= self.start_date:
+            raise ValidationError({'end_date': 'Thời gian kết thúc phải sau thời gian bắt đầu.'})
+        if self.end_date < timezone.now():
+            self.is_active = False
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if timezone.now() > self.end_date:
+            self.is_active = False
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.title} ({self.start_date} - {self.end_date})"
+
+class SurveyQuestion(models.Model):
+    ANSWER_TYPE_CHOICES = (
+        ('RATING', 'Thang điểm (1-5)'),
+        ('TEXT', 'Câu trả lời văn bản'),
+    )
+
+    content = models.CharField(max_length=255)
+    answer_type = models.CharField(max_length=10, choices=ANSWER_TYPE_CHOICES)
+
+    def __str__(self):
+        return f"{self.content} ({self.get_answer_type_display()})"
+
+class SurveyResponse(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='survey_responses')
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='responses')
+    question = models.ForeignKey(SurveyQuestion, on_delete=models.CASCADE, related_name='responses')
+    rating = models.IntegerField(null=True, blank=True, choices=[(i, str(i)) for i in range(1, 6)])
+    text_answer = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['student', 'survey', 'question']
+
+    def clean(self):
+        if self.question.answer_type == 'RATING' and (self.rating is None or self.rating < 1 or self.rating > 5):
+            raise ValidationError({'rating': 'Điểm đánh giá phải từ 1 đến 5.'})
+        if self.question.answer_type == 'TEXT' and not self.text_answer:
+            raise ValidationError({'text_answer': 'Câu trả lời văn bản là bắt buộc.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.question.content}"
     
 class Message(models.Model):
     STATUS_CHOICES = (

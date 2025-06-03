@@ -1,0 +1,482 @@
+{% extends 'admin/base_site.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    .stats-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+    .filter-form {
+        margin-bottom: 20px;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .filter-row {
+        margin-bottom: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 15px;
+    }
+    .mode-switch {
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .stats-table th, .stats-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .stats-table th {
+        background-color: rgb(0, 174, 209);
+        cursor: pointer;
+        position: relative;
+        transition: background-color 0.3s, opacity 0.3s;
+    }
+    .stats-table th:hover {
+        opacity: 0.8;
+    }
+    .stats-table th.sort-asc::after {
+        content: "↑";
+        position: absolute;
+        right: 8px;
+    }
+    .stats-table th.sort-desc::after {
+        content: "↓";
+        position: absolute;
+        right: 8px;
+    }
+    .chart-container {
+        margin-top: 20px;
+        max-width: 100%;
+        height: 400px;
+        display: none;
+    }
+    .active {
+        display: block;
+    }
+    select, input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    button {
+        padding: 8px 16px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    button:hover {
+        background-color: #45a049;
+    }
+    .no-data {
+        padding: 20px;
+        text-align: center;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        margin-top: 20px;
+    }
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 10px;
+    }
+    .loading.active {
+        display: block;
+    }
+    .navigation-link {
+        display: block;
+        text-align: right;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .navigation-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="stats-container">
+    <a href="{% url 'admin:navigation' %}" class="navigation-link">Qua trang chức năng</a>
+    <h1>THỐNG KÊ HÓA ĐƠN</h1>
+
+    <div class="filter-form">
+        <form method="get" id="filterForm">
+            <div class="filter-row">
+                <div>
+                    <label for="option">Lựa chọn:</label>
+                    <select name="option" id="option">
+                        <option value="by_building" {% if option == 'by_building' %}selected{% endif %}>Theo tòa</option>
+                        <option value="by_room_type" {% if option == 'by_room_type' %}selected{% endif %}>Theo loại phòng</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filter_type">Kiểu lọc:</label>
+                    <select name="filter_type" id="filter_type">
+                        <option value="month_year" {% if filter_type == 'month_year' %}selected{% endif %}>Theo tháng và năm</option>
+                        <option value="year" {% if filter_type == 'year' %}selected{% endif %}>Theo năm</option>
+                    </select>
+                </div>
+                
+                <div id="monthFilter" {% if filter_type == 'month_year' %}style="display:block"{% else %}style="display:none"{% endif %}>
+                    <label for="month">Tháng:</label>
+                    <input type="number" name="month" id="month" value="{{ month|default_if_none:'' }}" min="1" max="12">
+                </div>
+                
+                <div>
+                    <label for="year">Năm:</label>
+                    <input type="number" name="year" id="year" value="{{ year }}" min="2020" max="2030">
+                </div>
+                
+                <div>
+                    <button type="submit">Xem thống kê</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="mode-switch">
+            <label>Chế độ xem:</label>
+            <label class="switch">
+                <input type="checkbox" id="modeSwitch" {% if request.GET.mode == 'chart' %}checked{% endif %}>
+                <span class="slider round"></span>
+            </label>
+            <span>Biểu đồ</span>
+        </div>
+    </div>
+
+    <h2>
+        Kết quả thống kê 
+        {% if filter_type == 'month_year' %}
+            (Tháng {{ month }}/{{ year }})
+        {% else %}
+            (Năm {{ year }})
+        {% endif %}
+    </h2>
+    
+    <div class="loading" id="loadingIndicator">
+        <p>Đang tải dữ liệu...</p>
+    </div>
+    
+    <div id="tableView" class="{% if request.GET.mode != 'chart' %}active{% endif %}">
+        {% if has_data %}
+            {% if option == 'by_building' %}
+                <table class="stats-table" id="buildingTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(this, 0)">Tòa</th>
+                            <th onclick="sortTable(this, 1)">Khu vực</th>
+                            <th onclick="sortTable(this, 2)">Giới tính</th>
+                            <th onclick="sortTable(this, 3)">Tổng tiền (VNĐ)</th>
+                            <th onclick="sortTable(this, 4)">Số hóa đơn</th>
+                            <th onclick="sortTable(this, 5)">Trung bình (VNĐ)</th>
+                            <th onclick="sortTable(this, 6)">Số phòng có hóa đơn</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats %}
+                        <tr>
+                            <td>{{ stat.name }}</td>
+                            <td>{{ stat.area }}</td>
+                            <td>{{ stat.gender }}</td>
+                            <td>{{ stat.total_amount|intcomma }}</td>
+                            <td>{{ stat.bill_count }}</td>
+                            <td>{{ stat.avg_amount|intcomma }}</td>
+                            <td>{{ stat.room_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% elif option == 'by_room_type' %}
+                <table class="stats-table" id="roomTypeTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(this, 0)">Loại phòng</th>
+                            <th onclick="sortTable(this, 1)">Sức chứa</th>
+                            <th onclick="sortTable(this, 2)">Giá (VNĐ)</th>
+                            <th onclick="sortTable(this, 3)">Mô tả</th>
+                            <th onclick="sortTable(this, 4)">Tổng tiền (VNĐ)</th>
+                            <th onclick="sortTable(this, 5)">Số hóa đơn</th>
+                            <th onclick="sortTable(this, 6)">Trung bình (VNĐ)</th>
+                            <th onclick="sortTable(this, 7)">Số phòng có hóa đơn</th>
+                            <th onclick="sortTable(this, 8)">Tổng số phòng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats %}
+                        <tr>
+                            <td>{{ stat.name }}</td>
+                            <td>{{ stat.capacity }}</td>
+                            <td>{{ stat.price|intcomma }}</td>
+                            <td>{{ stat.description }}</td>
+                            <td>{{ stat.total_amount|intcomma }}</td>
+                            <td>{{ stat.bill_count }}</td>
+                            <td>{{ stat.avg_amount|intcomma }}</td>
+                            <td>{{ stat.room_count }}</td>
+                            <td>{{ stat.total_rooms }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        {% else %}
+            <div class="no-data">
+                <p>
+                    Không có dữ liệu thống kê 
+                    {% if filter_type == 'month_year' %}
+                    cho tháng {{ month }}/{{ year }}
+                    {% else %}
+                    cho năm {{ year }}
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div id="chartView" class="chart-container {% if request.GET.mode == 'chart' and has_data %}active{% endif %}">
+        <canvas id="statsChart"></canvas>
+    </div>
+    
+    {% if not has_data and request.GET.mode == 'chart' %}
+    <div class="no-data">
+        <p>Không có dữ liệu để hiển thị biểu đồ</p>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Global variable
+        let currentChart = null;
+
+        // Table sorting function
+        function sortTable(header, columnIndex) {
+            const table = header.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const currentDirection = header.classList.contains('sort-asc') ? 'asc' :
+                                    header.classList.contains('sort-desc') ? 'desc' : 'none';
+
+            // Remove existing sort classes
+            table.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+
+            // Determine new sort direction
+            let newDirection = (currentDirection === 'none' || currentDirection === 'desc') ? 'asc' : 'desc';
+            header.classList.add(newDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+
+            // Sort rows
+            rows.sort((a, b) => {
+                const aValue = a.cells[columnIndex].textContent.trim();
+                const bValue = b.cells[columnIndex].textContent.trim();
+
+                // Handle numeric values
+                const aNum = parseFloat(aValue.replace(/[^0-9.-]/g, ''));
+                const bNum = parseFloat(bValue.replace(/[^0-9.-]/g, ''));
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return newDirection === 'asc' ? aNum - bNum : bNum - aNum;
+                } else {
+                    return newDirection === 'asc' 
+                        ? aValue.localeCompare(bValue, undefined, {numeric: true}) 
+                        : bValue.localeCompare(aValue, undefined, {numeric: true});
+                }
+            });
+
+            // Update table
+            while (tbody.firstChild) {
+                tbody.removeChild(tbody.firstChild);
+            }
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // Toggle between table and chart view
+        function toggleView() {
+            const tableView = document.getElementById('tableView');
+            const chartView = document.getElementById('chartView');
+            const modeSwitch = document.getElementById('modeSwitch');
+
+            if (modeSwitch.checked) {
+                tableView.classList.remove('active');
+                if ({{ has_data|yesno:"true,false" }}) {
+                    chartView.classList.add('active');
+                    renderChart();
+                }
+            } else {
+                tableView.classList.add('active');
+                chartView.classList.remove('active');
+                if (currentChart) {
+                    currentChart.destroy();
+                    currentChart = null;
+                }
+            }
+
+            // Save chart mode to localStorage
+            localStorage.setItem('chartMode', modeSwitch.checked);
+
+            // Update URL to persist mode
+            const url = new URL(window.location.href);
+            if (modeSwitch.checked) {
+                url.searchParams.set('mode', 'chart');
+            } else {
+                url.searchParams.delete('mode');
+            }
+            window.history.replaceState({}, '', url);
+        }
+
+        // Update filter visibility
+        function updateFilters() {
+            const filterType = document.getElementById('filter_type').value;
+            const monthFilter = document.getElementById('monthFilter');
+            monthFilter.style.display = filterType === 'month_year' ? 'block' : 'none';
+        }
+
+        // Render chart
+        function renderChart() {
+            const ctx = document.getElementById('statsChart').getContext('2d');
+
+            // Destroy existing chart if any
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            // Prepare data
+            const labels = [];
+            const data = [];
+            const backgroundColors = ['#FF6F61', '#6B7280', '#10B981', '#FBBF24', '#3B82F6', '#EF4444'];
+            const borderColors = ['#D32F2F', '#4B5563', '#059669', '#D97706', '#2563EB', '#B91C1C'];
+
+            {% if stats %}
+                {% for stat in stats %}
+                    labels.push('{{ stat.name|escapejs }}');
+                    data.push({{ stat.total_amount|default:0 }});
+                {% endfor %}
+            {% endif %}
+
+            // Create new chart
+            currentChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Tổng tiền (VNĐ)',
+                        data: data,
+                        backgroundColor: backgroundColors.slice(0, labels.length),
+                        borderColor: borderColors.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Tổng tiền (VNĐ)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN') + ' VNĐ';
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: getXAxisTitle()
+                            },
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toLocaleString('vi-VN') + ' VNĐ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Get X-axis title
+        function getXAxisTitle() {
+            const option = '{{ option }}';
+            switch (option) {
+                case 'by_building': return 'Tòa nhà';
+                case 'by_room_type': return 'Loại phòng';
+                default: return '';
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize filters
+            updateFilters();
+
+            // Handle filter type change
+            document.getElementById('filter_type').addEventListener('change', function() {
+                updateFilters();
+                document.getElementById('filterForm').submit();
+            });
+
+            // Handle option change
+            document.getElementById('option').addEventListener('change', function() {
+                document.getElementById('filterForm').submit();
+            });
+
+            // Initialize chart mode from localStorage or URL
+            const modeSwitch = document.getElementById('modeSwitch');
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlMode = urlParams.get('mode');
+            const storedMode = localStorage.getItem('chartMode');
+
+            if (urlMode === 'chart') {
+                modeSwitch.checked = true;
+                localStorage.setItem('chartMode', true);
+            } else if (storedMode !== null) {
+                modeSwitch.checked = storedMode === 'true';
+            }
+
+            // Handle mode switch
+            modeSwitch.addEventListener('change', toggleView);
+
+            // Render chart if in chart mode and data exists
+            if (modeSwitch.checked && {{ has_data|yesno:"true,false" }}) {
+                document.getElementById('tableView').classList.remove('active');
+                document.getElementById('chartView').classList.add('active');
+                renderChart();
+            }
+
+            // Show loading indicator on form submit
+            document.getElementById('filterForm').addEventListener('submit', function() {
+                document.getElementById('loadingIndicator').classList.add('active');
+            });
+        });
+    </script>
+</div>
+{% endblock %}

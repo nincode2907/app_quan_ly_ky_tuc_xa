@@ -1,0 +1,47 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+<style>
+    .links-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+    .links-container h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .links-list {
+        list-style-type: none;
+        padding: 0;
+    }
+    .links-list li {
+        margin-bottom: 10px;
+    }
+    .links-list a {
+        display: block;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        text-decoration: none;
+        color: #333;
+        font-size: 16px;
+        transition: background-color 0.3s;
+    }
+    .links-list a:hover {
+        background-color: #e0e0e0;
+    }
+</style>
+
+<div class="links-container">
+    <h1>DANH SÁCH CÁC CHỨC NĂNG</h1>
+    <ul class="links-list">
+        <li><a href="{% url 'admin:dashboard' %}">Dashboard tổng quan</a></li>
+        <li><a href="{% url 'admin:bill-stats' %}">Thống kê hóa đơn</a></li>
+        <li><a href="{% url 'admin:qr-code-daily' %}">Xem mã QR Check-in/out</a></li>
+        <li><a href="{% url 'admin:qr-code-daily' %}">Xem mã QR Check-in/out</a></li>
+    </ul>
+</div>
+{% endblock %}

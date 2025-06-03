@@ -1,0 +1,40 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+<style>
+    .qr-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        text-align: center;
+    }
+    .qr-code {
+        margin-top: 20px;
+    }
+    .navigation-link {
+        display: block;
+        text-align: right;
+        font-size: 14px;
+        color: #007bff;
+        text-decoration: none;
+    }
+    .navigation-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="qr-container">
+    <a href="{% url 'admin:navigation' %}" class="navigation-link">Qua trang chức năng</a>
+    <h1>MÃ QR CHECK-IN/OUT NGÀY HIỆN TẠI</h1>
+    <p>Ngày: {{ today }}</p>
+    {% if qr_code %}
+        <p>Mã QR đã được tạo cho ngày hôm nay. Vui lòng quét mã để check-in/out.</p>
+        <div class="qr-code">
+            <img src="{{ qr_code.image_url.url }}" alt="QR Code">
+        </div>
+        <p>Mã: {{ qr_code.qr_token }}</p>
+    {% else %}
+        <p>Chưa có mã QR cho ngày hôm nay. Vui lòng chạy command để tạo mã.</p>
+    {% endif %}
+</div>
+{% endblock %}

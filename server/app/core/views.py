@@ -5,9 +5,9 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import FavoriteRoom, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import FavoriteRoom, Survey,CheckInOutLog,QRCode, SurveyResponse,SurveyQuestion, IssueReport, Notification, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
-from .perms import IsAdminOrSelf
+from .perms import IsAdminOrSelf, IsAdminCustom
 from .services.create_otp import OTPService
 from .services import process_qr_scan
 import random
@@ -17,12 +17,13 @@ from django.utils import timezone
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 import re
-from django.contrib.auth.models import AnonymousUser
+from django.db.models import Avg, Count
 from .services.payment import PaymentService
 from core.services.send_email import EmailService
 from django_ratelimit.decorators import ratelimit
 from oauth2_provider.models import AccessToken, RefreshToken
 from drf_yasg.utils import swagger_auto_schema
+from django.db import transaction
 from drf_yasg import openapi
 from cloudinary.uploader import upload
 
@@ -451,6 +452,245 @@ class PaymentTransactionViewSet(viewsets.ViewSet, generics.ListAPIView, generics
                 'bill__student__room__building__area').order_by('id')
         return PaymentTransaction.objects.filter(bill__student__user=self.request.user).select_related('bill__student__user')
     
+class IssueReportViewSet(viewsets.ModelViewSet):
+    queryset = IssueReport.objects.all()
+    serializer_class = serializers.IssueReportSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('student')
+        if not self.request.user.is_admin:
+            try:
+                student = self.request.user.students
+                queryset = queryset.filter(student=student)
+            except Student.DoesNotExist:
+                return queryset.none()
+        return queryset
+
+    def perform_create(self, serializer):
+        try:
+            student = self.request.user.students
+            serializer.save(student=student)
+        except Student.DoesNotExist:
+            raise ValidationError("Không tìm thấy thông tin sinh viên.")
+
+    @action(detail=True, methods=['patch'], permission_classes=[permissions.IsAdminUser])
+    def resolve(self, request, pk=None):
+        report = self.get_object()
+        if report.status == 'RESOLVED':
+            return Response({"error": "Phản ánh đã được xử lý."}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_text = request.data.get('response')
+        if not response_text:
+            return Response({"error": "Vui lòng cung cấp phản hồi."}, status=status.HTTP_400_BAD_REQUEST)
+        
+class SurveyQuestionViewSet(viewsets.ModelViewSet):
+    queryset = SurveyQuestion.objects.all()
+    serializer_class = serializers.SurveyQuestionSerializer
+    permission_classes = [IsAdminCustom]
+    
+class SurveyViewSet(viewsets.ModelViewSet):
+    queryset = Survey.objects.all()
+    serializer_class = serializers.SurveySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'statistics']:
+            return [IsAdminCustom()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().prefetch_related('questions')
+        if not self.request.user.is_admin:
+            # Sinh viên chỉ thấy khảo sát đang hoạt động
+            queryset = queryset.filter(is_active=True, end_date__gte=timezone.now())
+        return queryset
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context
+
+    def perform_create(self, serializer):
+        survey = serializer.save()
+        # Tự động tạo thông báo cho tất cả sinh viên
+        notification = Notification.objects.create(
+            title=f"{survey.title} - Khảo sát mới",
+            content=f"Vui lòng tham gia khảo sát {survey.title}.",
+            notification_type='NORMAL',
+            target_type='ALL'
+        )
+        survey.notification = notification
+        survey.save()
+
+        print(f"Notification created for survey {survey.title} with ID {notification.id}")
+        # Tạo UserNotification cho tất cả sinh viên
+        students = Student.objects.all()
+        for student in students:
+            UserNotification.objects.create(student=student, notification=notification)
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAdminUser])
+    def statistics(self, request, pk=None):
+        survey = self.get_object()
+        questions = survey.questions.all()
+        stats = []
+
+        for question in questions:
+            responses = question.responses.all()
+            if question.answer_type == 'RATING':
+                avg_rating = responses.aggregate(Avg('rating'))['rating__avg'] or 0
+                count = responses.count()
+                stats.append({
+                    'question': question.content,
+                    'answer_type': question.answer_type,
+                    'average_rating': round(avg_rating, 2),
+                    'response_count': count
+                })
+            else:
+                stats.append({
+                    'question': question.content,
+                    'answer_type': question.answer_type,
+                    'responses': [r.text_answer for r in responses]
+                })
+
+        return Response(stats)
+
+class SurveyResponseViewSet(viewsets.ModelViewSet):
+    queryset = SurveyResponse.objects.all()
+    serializer_class = serializers.SurveyResponseSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related('student', 'survey', 'question')
+        if not self.request.user.is_admin:
+            try:
+                student = self.request.user.students
+                queryset = queryset.filter(student=student)
+            except Student.DoesNotExist:
+                return queryset.none()
+        return queryset
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        try:
+            student = self.request.user.students
+        except Student.DoesNotExist:
+            return Response({"detail": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Kiểm tra dữ liệu đầu vào là danh sách
+        if not isinstance(request.data, list):
+            return Response({"detail": "Dữ liệu phải là một danh sách câu trả lời."}, status=status.HTTP_400_BAD_REQUEST)
+
+        responses = []
+        survey_id = request.data[0].get('survey') if request.data else None
+        if not survey_id:
+            return Response({"detail": "Không tìm thấy ID khảo sát."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            survey = Survey.objects.get(id=survey_id)
+            if not survey.is_active or survey.end_date < timezone.now():
+                return Response({"detail": "Khảo sát đã kết thúc hoặc không khả dụng."}, status=status.HTTP_400_BAD_REQUEST)
+        except Survey.DoesNotExist:
+            return Response({"detail": "Khảo sát không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Kiểm tra xem sinh viên đã hoàn thành khảo sát chưa
+        survey_serializer = serializers.SurveySerializer(survey, context={'request': request})
+        if survey_serializer.data['is_completed']:
+            return Response({"detail": "Bạn đã hoàn thành khảo sát này."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Kiểm tra tất cả câu trả lời thuộc cùng một khảo sát
+        for response_data in request.data:
+            if response_data.get('survey') != survey_id:
+                return Response({"detail": "Tất cả câu trả lời phải thuộc cùng một khảo sát."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Lấy tổng số câu hỏi của khảo sát
+        total_questions = survey.questions.count()
+        if total_questions == 0:
+            return Response({"detail": "Khảo sát không có câu hỏi để trả lời."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(request.data) != total_questions:
+            return Response({"detail": f"Phải trả lời đúng {total_questions} câu hỏi, nhưng chỉ nhận được {len(request.data)} câu trả lời."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Xử lý từng câu trả lời
+        for response_data in request.data:
+            response_data['student'] = student.id
+            serializer = self.get_serializer(data=response_data)
+            serializer.is_valid(raise_exception=True)
+
+            # Kiểm tra xem câu trả lời đã tồn tại chưa
+            existing_response = SurveyResponse.objects.filter(
+                student=student,
+                survey=survey,
+                question=response_data['question']
+            ).first()
+
+            if existing_response:
+                # Cập nhật câu trả lời hiện có
+                serializer = self.get_serializer(existing_response, data=response_data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                response = serializer.save()
+            else:
+                # Tạo mới câu trả lời
+                response = serializer.save(student=student)
+            responses.append(serializer.data)
+
+        return Response(responses, status=status.HTTP_201_CREATED)
+   
+class CheckInOutLogViewSet(viewsets.ModelViewSet):
+    queryset = CheckInOutLog.objects.all().select_related('student', 'building', 'qr_code').order_by('-check_time')
+    serializer_class = serializers.CheckInOutLogSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]  # Yêu cầu xác thực người dùng
+
+    @action(detail=False, methods=['post'], url_path='scan')
+    def scan_qr(self, request):
+        try:
+            with transaction.atomic():  # Đảm bảo tính toàn vẹn dữ liệu
+                data = request.data
+                qr_token = data.get('qr_token')
+
+                if not qr_token:
+                    return Response({'status': 'error', 'message': 'Thiếu thông tin qr_token'}, status=status.HTTP_400_BAD_REQUEST)
+
+                try:
+                    student = request.user.students
+                except (Student.DoesNotExist, AttributeError):
+                    return Response({'status': 'error', 'message': 'Không tìm thấy thông tin sinh viên'}, status=status.HTTP_400_BAD_REQUEST)
+
+                today = timezone.now().date()
+                qr_code = QRCode.objects.filter(qr_token=qr_token, date=today).first()
+                if not qr_code:
+                    return Response({'status': 'error', 'message': 'Mã QR không hợp lệ hoặc hết hạn'}, status=status.HTTP_400_BAD_REQUEST)
+
+                if qr_code.is_used:
+                    return Response({'status': 'error', 'message': 'Mã QR đã được sử dụng'}, status=status.HTTP_400_BAD_REQUEST)
+
+                building = student.room.building if student.room else None
+                if not building:
+                    return Response({'status': 'error', 'message': 'Sinh viên chưa có phòng'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Kiểm tra log gần nhất của sinh viên trong ngày
+                last_log = CheckInOutLog.objects.filter(student=student, date=today).order_by('-check_time').first()
+                new_status = 'CHECK_IN' if not last_log or last_log.status == 'CHECK_OUT' else 'CHECK_OUT'
+
+                # Tạo log mới
+                log = CheckInOutLog.objects.create(
+                    student=student,
+                    building=building,
+                    qr_code=qr_code,
+                    status=new_status,
+                    check_time=timezone.now()
+                )
+
+                serializer = serializers.CheckInOutLogSerializer(log)
+                return Response({
+                    'status': 'success',
+                    'message': f'{new_status.title()} thành công',
+                    'action': new_status.lower(),
+                    'data': serializer.data
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+         
 # account
 # /api/user/change_password/
 @swagger_auto_schema(

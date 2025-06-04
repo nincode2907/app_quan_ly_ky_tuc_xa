@@ -29,7 +29,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 import pandas as pd
 from oauth2_provider.models import AccessToken, Application  # Thêm Application
 
-# Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
     site_header = "HỆ THỐNG QUẢN LÝ KÝ TÚC XÁ"
     site_title = "Admin KTX"
@@ -51,8 +50,6 @@ class KTXAdminSite(admin.AdminSite):
             path('chat/', self.admin_view(self.chat_view), name='chat'),
         ]
         
-        # admin_view(): Bắt buộc để kiểm tra quyền truy cập
-        # Thứ tự URL quan trọng (custom URLs nên đặt trước)
         return custom_urls + urls
     
     def ktx_stats(self, request):
@@ -81,14 +78,11 @@ class KTXAdminSite(admin.AdminSite):
         except Survey.DoesNotExist:
             return TemplateResponse(request, index.templates['a_survey_404'], {}, status=404)
 
-        # Kiểm tra trạng thái khảo sát
         is_active = survey.is_active and survey.end_date >= timezone.now()
         status_text = "Đang hoạt động" if is_active else "Đã kết thúc"
 
-        # Tính số lượng sinh viên tham gia (distinct student count)
         total_participants = survey.responses.values('student').distinct().count()
 
-        # Lấy các câu hỏi và thống kê
         questions = survey.questions.annotate(
             response_count=Count('responses'),
             avg_rating=Avg('responses__rating')
@@ -103,14 +97,11 @@ class KTXAdminSite(admin.AdminSite):
                 'response_count': question.response_count or 0,
             }
             if question.answer_type == 'RATING':
-                # Tính trung bình và phân bố điểm
                 stat['avg_rating'] = round(question.avg_rating or 0, 2)
-                # Phân bố điểm (số lượng mỗi mức điểm 1-5)
                 distribution = {str(i): 0 for i in range(1, 6)}
                 for response in responses:
                     if response.rating:
                         distribution[str(response.rating)] += 1
-                # Tính tỷ lệ phần trăm cho mỗi mức điểm
                 stat['distribution_with_percentage'] = {}
                 for rating, count in distribution.items():
                     percentage = (count / stat['response_count'] * 100) if stat['response_count'] > 0 else 0
@@ -120,7 +111,6 @@ class KTXAdminSite(admin.AdminSite):
                     }
                 stat['distribution'] = distribution
             elif question.answer_type == 'TEXT':
-                # Lấy danh sách câu trả lời dạng text
                 stat['text_responses'] = [
                     {'student': f"{r.student.full_name} ({r.student.student_id})", 'text': r.text_answer}
                     for r in responses if r.text_answer
@@ -135,7 +125,6 @@ class KTXAdminSite(admin.AdminSite):
         })
         
     def bill_statistics_view(self, request):
-        # Default parameters
         option = request.GET.get('option', 'by_building')
         filter_type = request.GET.get('filter_type', 'month_year')
         try:
@@ -150,7 +139,6 @@ class KTXAdminSite(admin.AdminSite):
 
         stats = []
         
-        # Common filter for bills
         bill_filter = Q()
         if filter_type == 'month_year':
             bill_filter = Q(rooms__contracts__student__bills__month=month, 
@@ -158,7 +146,6 @@ class KTXAdminSite(admin.AdminSite):
         else:
             bill_filter = Q(rooms__contracts__student__bills__year=year)
 
-        # Process statistics based on option
         if option == 'by_building':
             buildings = Building.objects.select_related('area').annotate(
                 total_amount=Sum('rooms__contracts__student__bills__amount', filter=bill_filter),
@@ -221,13 +208,11 @@ class KTXAdminSite(admin.AdminSite):
         week_start = today - timedelta(days=today.weekday())
         month_start = today.replace(day=1)
 
-        # Tổng số sinh viên đang ở (có hợp đồng còn hiệu lực)
         total_students = Student.objects.filter(
             contracts__end_date__gte=today,
             contracts__start_date__lte=today
         ).distinct().count()
 
-        # Số sinh viên hiện tại ở trong (IN) và ra ngoài (OUT)
         students_in = 0
         students_out = 0
         active_students = Student.objects.filter(
@@ -244,7 +229,6 @@ class KTXAdminSite(admin.AdminSite):
             else:
                 students_out += 1
 
-        # Số sinh viên theo từng tòa
         students_by_building = Building.objects.annotate(
             student_count=Count('rooms__contracts__student', filter=Q(
                 rooms__contracts__end_date__gte=today,
@@ -252,7 +236,6 @@ class KTXAdminSite(admin.AdminSite):
             ))
         ).values('name', 'student_count')
 
-        # Số lượt check-in/out hôm nay
         checkinout_day = {
             'labels': [f"{hour}:00" for hour in range(24)],
             'checkin': [0] * 24,
@@ -266,7 +249,6 @@ class KTXAdminSite(admin.AdminSite):
             else:
                 checkinout_day['checkout'][hour] += 1
 
-        # Số lượt check-in/out tuần này
         checkinout_week = {
             'labels': [(week_start + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)],
             'checkin': [0] * 7,
@@ -281,7 +263,6 @@ class KTXAdminSite(admin.AdminSite):
                 else:
                     checkinout_week['checkout'][day_index] += 1
 
-        # Số lượt check-in/out tháng này
         days_in_month = (month_start.replace(day=28) + timedelta(days=4)).day
         checkinout_month = {
             'labels': [(month_start + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days_in_month)],
@@ -297,7 +278,7 @@ class KTXAdminSite(admin.AdminSite):
                 else:
                     checkinout_month['checkout'][day_index] += 1
 
-        return TemplateResponse(request, 'admin/dashboard.html', {
+        return TemplateResponse(request, index.templates['a_dashboard'], {
             'total_students': int(total_students),
             'students_in': int(students_in),
             'students_out': int(students_out),
@@ -354,7 +335,6 @@ class KTXAdminSite(admin.AdminSite):
                     last_log.check_time.strftime('%Y-%m-%d %H:%M:%S') if last_log else 'N/A',
                 ])
 
-        # Đăng ký font hỗ trợ tiếng Việt (DejaVuSans)
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         font_path = os.path.join(base_dir, 'core', 'static', 'fonts')
         pdfmetrics.registerFont(TTFont('DejaVuSans', os.path.join(font_path, 'DejaVuSans.ttf')))
@@ -418,21 +398,16 @@ class KTXAdminSite(admin.AdminSite):
         return response
         
     def chat_view(self, request):
-        # Đảm bảo người dùng đã đăng nhập và là admin
         if not request.user.is_authenticated or not request.user.is_admin:
             return HttpResponse("Unauthorized", status=401)
 
-        # Tìm hoặc tạo access_token
         try:
-            # Kiểm tra token hiện tại
             access_token_obj = AccessToken.objects.filter(
                 user=request.user,
                 expires__gt=timezone.now()
             ).order_by('-created').first()
 
             if not access_token_obj:
-                # Nếu không có token hợp lệ, tạo token mới
-                # Đảm bảo có application cho OAuth2
                 app, created = Application.objects.get_or_create(
                     name="Admin Chat Application",
                     client_type=Application.CLIENT_CONFIDENTIAL,
@@ -440,23 +415,21 @@ class KTXAdminSite(admin.AdminSite):
                     user=request.user
                 )
 
-                # Tạo access_token mới
                 access_token_obj = AccessToken.objects.create(
                     user=request.user,
                     application=app,
-                    expires=timezone.now() + timedelta(hours=1),  # Token hết hạn sau 1 giờ
-                    scope="read write"  # Điều chỉnh scope nếu cần
+                    expires=timezone.now() + timedelta(hours=1),  
+                    scope="read write"  
                 )
 
             access_token = access_token_obj.token
             print(f"Access Token for {request.user.email}: {access_token}")
 
-            # Truyền access_token vào template
-            return TemplateResponse(request, 'admin/chat.html', {
+            return TemplateResponse(request, index.templates['a_chat'], {
                 'access_token': access_token
             })
         except Exception as e:
-            return TemplateResponse(request, 'admin/chat.html', {
+            return TemplateResponse(request, index.templates['a_chat'], {
                 'access_token': None,
                 'error': f"Error retrieving or creating access token: {str(e)}"
             })
@@ -491,7 +464,7 @@ class UserAdmin(BaseUserAdmin):
     
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        if not obj:  # Khi tạo mới
+        if not obj: 
             if 'email' in form.base_fields:
                 form.base_fields['email'].label = 'Email (dùng để đăng nhập)'
         return form
@@ -505,14 +478,11 @@ class UserAdmin(BaseUserAdmin):
     
     def save_model(self, request, obj, form, change):
         if not change:
-            # Tạo user mới
             obj.is_first_login = True
             obj.save()
             
-            # Sinh student_id theo định dạng: YYFFFNNN
-            year_suffix = str(form.cleaned_data['year_start'])[-2:]  # Lấy 2 chữ số cuối của year_start
-            faculty_code = form.cleaned_data['faculty'].code  # Giả định Faculty có trường code
-            # Lấy số thứ tự tiếp theo (tìm student_id lớn nhất có cùng YYFFF và tăng lên 1)
+            year_suffix = str(form.cleaned_data['year_start'])[-2:]  
+            faculty_code = form.cleaned_data['faculty'].code 
             existing_ids = Student.objects.filter(
                 student_id__startswith=f"{year_suffix}{faculty_code}"
             ).values_list('student_id', flat=True)
@@ -521,9 +491,8 @@ class UserAdmin(BaseUserAdmin):
                 seq = int(sid[-3:]) if sid[-3:].isdigit() else 0
                 max_seq = max(max_seq, seq)
             next_seq = max_seq + 1
-            student_id = f"{year_suffix}{faculty_code}{next_seq:03d}"  # Định dạng NNN (3 chữ số)
+            student_id = f"{year_suffix}{faculty_code}{next_seq:03d}"  
             
-            # Tạo Student liên kết với User
             student = Student.objects.create(
                 full_name=form.cleaned_data['full_name'],
                 gender=form.cleaned_data['gender'],
@@ -533,7 +502,6 @@ class UserAdmin(BaseUserAdmin):
                 user=obj
             )
             
-            # Gửi email chào mừng
             subject = 'Thông Tin Tài Khoản Mới Ký Túc Xá Sinh Viên'
             html_message = render_to_string(index.templates['e_welcome'], {
                 'full_name': student.full_name,
@@ -626,7 +594,6 @@ class RoomRequestAdmin(admin.ModelAdmin):
                 self.message_user(request, f"Sinh viên {room_request.student.full_name} đã bị khóa.")
                 continue
 
-            # Kết thúc hợp đồng cũ (nếu có)
             old_contract = Contract.objects.filter(student=room_request.student, end_date__isnull=True).first()
             if old_contract:
                 old_contract.end_date = timezone.now()
@@ -635,7 +602,6 @@ class RoomRequestAdmin(admin.ModelAdmin):
                 old_room.available_slots += 1
                 old_room.save()
 
-            # Tạo hợp đồng mới
             Contract.objects.create(
                 student=room_request.student,
                 room=room_request.requested_room,
@@ -646,7 +612,6 @@ class RoomRequestAdmin(admin.ModelAdmin):
             room_request.status = 'APPROVED'
             room_request.save()
 
-            # Gửi email thông báo
             subject = 'Thông Báo Phê Duyệt Yêu Cầu Phòng'
             html_message = render_to_string(index.templates['e_room_request_approved'], {
                 'full_name': room_request.student.full_name,
@@ -760,7 +725,6 @@ class NotificationAdmin(admin.ModelAdmin):
             elif notification.target_type == 'ROOM' and notification.target_room:
                 students = students.filter(room=notification.target_room)
 
-        # Tạo UserNotification và gửi email
         for student in students:
             print(f"Sending notification to {student.full_name} ({student.user.email})")
             UserNotification.objects.create(
@@ -812,27 +776,21 @@ class SupportRequestAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         old_status = obj.status if change else None
 
-        # Lưu đối tượng trước để lấy trạng thái mới
         super().save_model(request, obj, form, change)
-
-        # Nếu trạng thái thay đổi thành APPROVED hoặc REJECTED, gửi thông báo
         if (not change and obj.status in ['APPROVED', 'REJECTED']) or (change and old_status == 'PENDING' and obj.status in ['APPROVED', 'REJECTED']):
-            # Xác định phản hồi
             response_type = form.cleaned_data.get('response_type')
             if obj.status == 'APPROVED':
                 default_response = "Yêu cầu của bạn đã được duyệt. Chúng tôi sẽ xử lý sớm."
                 title = "Yêu Cầu Hỗ Trợ Được Phê Duyệt"
-            else:  # REJECTED
+            else:  
                 default_response = "Yêu cầu của bạn đã bị từ chối do không đủ điều kiện."
                 title = "Yêu Cầu Hỗ Trợ Bị Từ Chối"
 
             response = form.cleaned_data.get('custom_response') if response_type == 'custom' else default_response
 
-            # Cập nhật phản hồi
             obj.response = response
             obj.save()
 
-            # Tạo thông báo cá nhân
             notification = Notification.objects.create(
                 title=title,
                 content=f"Yêu cầu {obj.request_type} của bạn đã được xử lý: {response}",
@@ -882,7 +840,7 @@ class SurveyAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'start_date']
     search_fields = ['title', 'description']
     readonly_fields = ['created_at', 'updated_at', 'notification']
-    filter_horizontal = ['questions']  # Hiển thị checklist cho questions
+    filter_horizontal = ['questions']
     actions = ['end_survey']
 
     def stats_link(self, obj):
@@ -896,7 +854,7 @@ class SurveyAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        if not change:  # Chỉ chạy khi tạo mới
+        if not change: 
             notification = Notification.objects.create(
                 title=f"{obj.title} - Khảo sát mới",
                 content=f"Vui lòng tham gia khảo sát {obj.title}.",
@@ -906,7 +864,6 @@ class SurveyAdmin(admin.ModelAdmin):
             obj.notification = notification
             obj.save(update_fields=['notification'])
             print(f"Notification created for survey {obj.title} with ID {notification.id}")
-            # Tạo UserNotification cho tất cả sinh viên
             students = Student.objects.all()
             for student in students:
                 UserNotification.objects.create(student=student, notification=notification)

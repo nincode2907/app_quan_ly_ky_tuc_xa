@@ -14,12 +14,14 @@ const HomeChat = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [hasMoreMessages, setHasMoreMessages] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [isWaitingForAI, setIsWaitingForAI] = useState(false);
+    const [isAdminHandling, setIsAdminHandling] = useState(false);
 
     const flatListRef = useRef(null);
     const messageIds = useRef(new Set()).current;
     const lastProcessedTime = useRef(0);
     const messagesRef = useRef(messages); 
-    const { wsRef } = useWebSocket();
+    const { wsRef } = useWebSocket(); 
 
     useEffect(() => {
         messagesRef.current = messages;
@@ -32,6 +34,7 @@ const HomeChat = () => {
             const conversations = response.data.results || [];
             if (conversations.length > 0) {
                 setConversationStateId(conversations[0].id);
+                setIsAdminHandling(conversations[0].is_admin_handling || false);
                 await loadMessages(conversations[0].id);
             }
         } catch (error) {
@@ -119,11 +122,14 @@ const HomeChat = () => {
     };
 
     const handleSend = useCallback(async () => {
-        if (isSending || !inputText.trim() || !wsRef.current || !conversationStateId) {
+        if (isSending || (!isAdminHandling && isWaitingForAI) || !inputText.trim() || !wsRef.current || !conversationStateId) {
             return;
         }
 
         setIsSending(true);
+        if (!isAdminHandling) {
+            setIsWaitingForAI(true);
+        }
 
         try {
             setInputText('');
@@ -135,13 +141,15 @@ const HomeChat = () => {
                 }));
             } else {
                 console.warn('WebSocket not connected');
+                if (!isAdminHandling) setIsWaitingForAI(false);
             }
         } catch (error) {
             console.error('Error in handleSend:', error);
+            if (!isAdminHandling) setIsWaitingForAI(false);
         } finally {
             setIsSending(false);
         }
-    }, [inputText, conversationStateId, isSending]);
+    }, [inputText, conversationStateId, isSending, isWaitingForAI, isAdminHandling]);
 
     const handleScroll = ({ nativeEvent }) => {
         if (nativeEvent.contentOffset.y < 50 && !isLoadingMore && hasMoreMessages) {
@@ -166,7 +174,6 @@ const HomeChat = () => {
                     return;
                 }
 
-                // Kiểm tra duplicate dựa trên nội dung và thời gian
                 const isDuplicate = messagesRef.current.some(msg => 
                     msg.content === data.message.content && 
                     Math.abs(new Date(msg.time).getTime() - new Date(data.message.created_at).getTime()) < 1000
@@ -182,6 +189,14 @@ const HomeChat = () => {
                     };
                     setMessages(prev => [...prev, newMessage].sort((a, b) => a.time - b.time));
                     setConversationStateId(data.message.conversation_state);
+
+                    if (data.message.is_admin_handling !== undefined) {
+                        setIsAdminHandling(data.message.is_admin_handling);
+                    }
+
+                    if (data.message.is_from_ai && !isAdminHandling) {
+                        setIsWaitingForAI(false);
+                    }
                 } else {
                     messageIds.add(messageId);
                 }
@@ -190,8 +205,9 @@ const HomeChat = () => {
             }
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
+            if (!isAdminHandling) setIsWaitingForAI(false);
         }
-    }, []); // Không có dependency để tránh tạo lại hàm
+    }, [isAdminHandling]);
 
     const MessageBubble = React.memo(({ item }) => (
         <View
@@ -210,18 +226,16 @@ const HomeChat = () => {
     useEffect(() => {
         loadInitialData();
 
-        // Lắng nghe tin nhắn mới từ WebSocket
         if (wsRef.current) {
             wsRef.current.onmessage = handleWebSocketMessage;
         }
 
         return () => {
-            // Dọn dẹp event listener
             if (wsRef.current) {
                 wsRef.current.onmessage = null;
             }
         };
-    }, []); // Chỉ chạy một lần khi mount
+    }, [handleWebSocketMessage]); 
 
     return (
         <KeyboardAvoidingView
@@ -258,22 +272,23 @@ const HomeChat = () => {
                             <View style={StyleChat.inputBox}>
                                 <TextInput
                                     style={StyleChat.input}
-                                    placeholder="Nhập tin nhắn..."
+                                    placeholder={isAdminHandling ? "Nhập tin nhắn..." : (isWaitingForAI ? "Đang chờ AI trả lời..." : "Nhập tin nhắn...")}
                                     placeholderTextColor="#B0BEC5"
                                     value={inputText}
                                     onChangeText={setInputText}
                                     onSubmitEditing={handleSend}
                                     returnKeyType="send"
                                     enablesReturnKeyAutomatically={true}
+                                    editable={isAdminHandling ? true : !isWaitingForAI}
                                 />
                                 <TouchableOpacity
                                     onPress={handleSend}
-                                    disabled={!inputText.trim() || isSending}
+                                    disabled={isAdminHandling ? !inputText.trim() || isSending : !inputText.trim() || isSending || isWaitingForAI}
                                 >
                                     <Ionicons
                                         name="send"
                                         size={22}
-                                        color={inputText.trim() && !isSending ? "#1E90FF" : "#B0BEC5"}
+                                        color={isAdminHandling ? (inputText.trim() && !isSending ? "#1E90FF" : "#B0BEC5") : (inputText.trim() && !isSending && !isWaitingForAI ? "#1E90FF" : "#B0BEC5")}
                                     />
                                 </TouchableOpacity>
                             </View>

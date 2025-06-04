@@ -86,7 +86,6 @@
     <h1>TỔNG QUAN KÝ TÚC XÁ</h1>
     <p>Thời gian cập nhật: {{ current_time }}</p>
 
-    <!-- Card thống kê -->
     <div class="card-container">
         <div class="card">
             <h3>Tổng số sinh viên</h3>
@@ -104,14 +103,11 @@
         </div>
     </div>
 
-    <!-- Biểu đồ -->
     <div class="chart-row">
-        <!-- Biểu đồ tròn: Phân bố IN/OUT -->
         <div class="chart-container">
             <h3>Phân bố trạng thái IN/OUT</h3>
             <canvas id="inOutPieChart"></canvas>
         </div>
-        <!-- Biểu đồ cột: Số sinh viên theo tòa -->
         <div class="chart-container">
             <h3>Số sinh viên theo tòa</h3>
             {% if students_by_building %}

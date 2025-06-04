@@ -76,10 +76,9 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         avatar_file = request.data.get('avatar')
         if avatar_file:
             try:
-                # Upload to Cloudinary if new avatar is provided
                 upload_result = upload(avatar_file)
                 print(upload_result['public_id'])
-                user_data['avatar'] = upload_result['public_id']  # Use secure URL from Cloudinary
+                user_data['avatar'] = upload_result['public_id'] 
             except Exception as e:
                 return Response({"error": f"Upload avatar failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -120,8 +119,8 @@ class StudentViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAP
         year = current_date.year
         
         is_change_request = student.room is not None    
-        # if not (16 <= day <= 20) and is_change_request:
-        #     return Response({"error": "Chỉ được gửi yêu cầu chuyển phòng từ ngày 16 đến 20 hằng tháng."}, status=status.HTTP_400_BAD_REQUEST)
+        if not (16 <= day <= 20) and is_change_request:
+            return Response({"error": "Chỉ được gửi yêu cầu chuyển phòng từ ngày 16 đến 20 hằng tháng."}, status=status.HTTP_400_BAD_REQUEST)
         
         unpaid_bills = Bill.objects.filter(
             student = student,
@@ -190,11 +189,6 @@ class AreaViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
     def get_queryset(self):
         return Area.objects.all()
     
-    # def create(self, request, *args, **kwargs):
-    #     if not request.user.is_admin:
-    #         return Response({"error": "Chỉ admin mới có thể tạo khu vực."}, status=status.HTTP_403_FORBIDDEN)
-    #     return super().create(request, *args, **kwargs)
-    
 class BuildingViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIView):
     queryset = Building.objects.none()
     serializer_class = serializers.BuildingSerializer
@@ -238,14 +232,11 @@ class RoomViewSet(viewsets.ViewSet, generics.ListAPIView, generics.RetrieveAPIVi
         except Student.DoesNotExist:
             return Response({"error": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Lấy danh sách phòng yêu thích của sinh viên
         favorite_room_ids = FavoriteRoom.objects.filter(student=student).values_list('room_id', flat=True)
         
-        # Serialize dữ liệu phòng
         serializer = self.get_serializer(queryset, many=True)
         rooms_data = serializer.data
         
-        # Thêm trạng thái is_favorite vào mỗi phòng
         for room_data in rooms_data:
             room_data['is_favorite'] = room_data['id'] in favorite_room_ids
 
@@ -506,7 +497,6 @@ class SurveyViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset().prefetch_related('questions')
         if not self.request.user.is_admin:
-            # Sinh viên chỉ thấy khảo sát đang hoạt động
             queryset = queryset.filter(is_active=True, end_date__gte=timezone.now())
         return queryset
     
@@ -517,7 +507,6 @@ class SurveyViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         survey = serializer.save()
-        # Tự động tạo thông báo cho tất cả sinh viên
         notification = Notification.objects.create(
             title=f"{survey.title} - Khảo sát mới",
             content=f"Vui lòng tham gia khảo sát {survey.title}.",
@@ -528,7 +517,6 @@ class SurveyViewSet(viewsets.ModelViewSet):
         survey.save()
 
         print(f"Notification created for survey {survey.title} with ID {notification.id}")
-        # Tạo UserNotification cho tất cả sinh viên
         students = Student.objects.all()
         for student in students:
             UserNotification.objects.create(student=student, notification=notification)
@@ -581,7 +569,6 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
         except Student.DoesNotExist:
             return Response({"detail": "Không tìm thấy thông tin sinh viên."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Kiểm tra dữ liệu đầu vào là danh sách
         if not isinstance(request.data, list):
             return Response({"detail": "Dữ liệu phải là một danh sách câu trả lời."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -597,30 +584,25 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
         except Survey.DoesNotExist:
             return Response({"detail": "Khảo sát không tồn tại."}, status=status.HTTP_404_NOT_FOUND)
         
-        # Kiểm tra xem sinh viên đã hoàn thành khảo sát chưa
         survey_serializer = serializers.SurveySerializer(survey, context={'request': request})
         if survey_serializer.data['is_completed']:
             return Response({"detail": "Bạn đã hoàn thành khảo sát này."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Kiểm tra tất cả câu trả lời thuộc cùng một khảo sát
         for response_data in request.data:
             if response_data.get('survey') != survey_id:
                 return Response({"detail": "Tất cả câu trả lời phải thuộc cùng một khảo sát."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Lấy tổng số câu hỏi của khảo sát
         total_questions = survey.questions.count()
         if total_questions == 0:
             return Response({"detail": "Khảo sát không có câu hỏi để trả lời."}, status=status.HTTP_400_BAD_REQUEST)
         if len(request.data) != total_questions:
             return Response({"detail": f"Phải trả lời đúng {total_questions} câu hỏi, nhưng chỉ nhận được {len(request.data)} câu trả lời."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Xử lý từng câu trả lời
         for response_data in request.data:
             response_data['student'] = student.id
             serializer = self.get_serializer(data=response_data)
             serializer.is_valid(raise_exception=True)
 
-            # Kiểm tra xem câu trả lời đã tồn tại chưa
             existing_response = SurveyResponse.objects.filter(
                 student=student,
                 survey=survey,
@@ -628,12 +610,10 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
             ).first()
 
             if existing_response:
-                # Cập nhật câu trả lời hiện có
                 serializer = self.get_serializer(existing_response, data=response_data, partial=True)
                 serializer.is_valid(raise_exception=True)
                 response = serializer.save()
             else:
-                # Tạo mới câu trả lời
                 response = serializer.save(student=student)
             responses.append(serializer.data)
 
@@ -642,12 +622,12 @@ class SurveyResponseViewSet(viewsets.ModelViewSet):
 class CheckInOutLogViewSet(viewsets.ModelViewSet):
     queryset = CheckInOutLog.objects.all().select_related('student', 'building', 'qr_code').order_by('-check_time')
     serializer_class = serializers.CheckInOutLogSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]  # Yêu cầu xác thực người dùng
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]  
 
     @action(detail=False, methods=['post'], url_path='scan')
     def scan_qr(self, request):
         try:
-            with transaction.atomic():  # Đảm bảo tính toàn vẹn dữ liệu
+            with transaction.atomic(): 
                 data = request.data
                 qr_token = data.get('qr_token')
 
@@ -671,11 +651,9 @@ class CheckInOutLogViewSet(viewsets.ModelViewSet):
                 if not building:
                     return Response({'status': 'error', 'message': 'Sinh viên chưa có phòng'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Kiểm tra log gần nhất của sinh viên trong ngày
                 last_log = CheckInOutLog.objects.filter(student=student, date=today).order_by('-check_time').first()
                 new_status = 'CHECK_IN' if not last_log or last_log.status == 'CHECK_OUT' else 'CHECK_OUT'
 
-                # Tạo log mới
                 log = CheckInOutLog.objects.create(
                     student=student,
                     building=building,
@@ -741,7 +719,6 @@ class MessageViewSet(viewsets.ModelViewSet):
         
         print(f"Message created by {user.username}: {message.content}")
 
-        # Gửi tin nhắn qua WebSocket
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{user.id}",
@@ -757,80 +734,6 @@ class MessageViewSet(viewsets.ModelViewSet):
                 "message": serializers.MessageSerializer(message).data
             }
         )
-
-        # Xử lý AI trả lời
-        self.handle_ai_response(message, conversation_state)
-
-    def handle_ai_response(self, message, conversation_state):
-        recent_messages = Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')[:10]
-        system_contexts = SystemContext.objects.filter(is_active=True)
-        if system_contexts.exists():
-            context_lines = [f"- {ctx.content}" for ctx in system_contexts]
-            context = f"""
-                Đây là các ngữ cảnh, quy định, nội quy của ký túc xá:
-                {chr(10).join(context_lines)}
-
-                Bạn là trợ lý AI của ký túc xá. Hãy trả lời một cách lịch sự và chuyên nghiệp.
-                Nếu bạn không tìm thấy thông tin trong này, hãy trả lời: "Xin vui lòng chờ quản trị viên phản hồi."
-            """
-        else:
-            context = """
-                Bạn là trợ lý AI của ký túc xá. Hãy trả lời một cách lịch sự và chuyên nghiệp.
-                Nếu bạn không tìm thấy thông tin, hãy trả lời: "Xin vui lòng chờ quản trị viên phản hồi."
-            """
-
-        messages_for_ai = [{"role": "system", "content": context}]
-        for msg in recent_messages:
-            role = "assistant" if msg.is_from_ai else "user"
-            messages_for_ai.append({"role": role, "content": msg.content})
-
-        messages_for_ai.append({"role": "user", "content": message.content})
-
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=messages_for_ai
-            )
-            ai_response = response.choices[0].message['content'].strip()
-
-            if "Xin vui lòng chờ quản trị viên phản hồi." in ai_response:
-                message.is_pending_admin = True
-                message.save()
-                conversation_state.is_admin_handling = True
-                conversation_state.save()
-                return
-
-            ai_message = Message.objects.create(
-                conversation_state=conversation_state,
-                sender=self.request.user,
-                content=ai_response,
-                is_from_ai=True
-            )
-
-            conversation_state.is_admin_handling = False
-            conversation_state.last_message_at = timezone.now()
-            conversation_state.save()
-
-            channel_layer = get_channel_layer()
-            async_to_sync(channel_layer.group_send)(
-                f"chat_{self.request.user.id}",
-                {
-                    "type": "chat_message",
-                    "message": serializers.MessageSerializer(ai_message).data
-                }
-            )
-            async_to_sync(channel_layer.group_send)(
-                'chat_admin',
-                {
-                    "type": "chat_message",
-                    "message": serializers.MessageSerializer(ai_message).data
-                }
-            )
-        except Exception as e:
-            message.is_pending_admin = True
-            message.save()
-            conversation_state.is_admin_handling = True
-            conversation_state.save()
 
     @action(detail=False, methods=['get'], url_path='load-more')
     def load_more(self, request):
@@ -870,7 +773,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         except ConversationState.DoesNotExist:
             print(f"Conversation {conversation_state_id} not found")
             return Response({"messages": [], "status": "no_conversation"}, status=status.HTTP_200_OK)
-    
+
 class ConversationStateViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.ConversationStateSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
@@ -929,10 +832,10 @@ def change_password(request):
         if user.check_password(new_password):
             return Response({"error": "Mật khẩu mới không được giống mật khẩu cũ."}, status=status.HTTP_400_BAD_REQUEST)
         
-    # if not re.match(password_pattern, new_password):
-    #     return Response({
-    #         "error": "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
-    #     }, status=status.HTTP_400_BAD_REQUEST)
+    if not re.match(password_pattern, new_password):
+        return Response({
+            "error": "Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt."
+        }, status=status.HTTP_400_BAD_REQUEST)
         
     user.set_password(new_password)
     user.is_first_login = False
@@ -950,14 +853,12 @@ def reset_password(request):
         return Response({"error": "Vui lòng cung cấp email và mã OTP."}, status=status.HTTP_400_BAD_REQUEST)
     
     try:
-        # Kiểm tra OTP lần nữa
         if not OTPService.verify_otp(otp, email=email):
             return Response({"error": "Mã OTP không hợp lệ."}, status=status.HTTP_400_BAD_REQUEST)
         
         EmailService.send_new_password(email)
         response_data = {"message": "Mật khẩu mới đã được gửi đến email của bạn."}
         if request.user.is_authenticated:
-            # Xóa tất cả token OAuth2 của user
             AccessToken.objects.filter(user=request.user).delete()
             RefreshToken.objects.filter(user=request.user).delete()
             response_data["message"] = "Mật khẩu đã được đặt lại, vui lòng đăng nhập lại."

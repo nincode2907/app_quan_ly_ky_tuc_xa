@@ -261,10 +261,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Global variable
         let currentChart = null;
 
-        // Table sorting function
         function sortTable(header, columnIndex) {
             const table = header.closest('table');
             const tbody = table.querySelector('tbody');
@@ -272,21 +270,17 @@
             const currentDirection = header.classList.contains('sort-asc') ? 'asc' :
                                     header.classList.contains('sort-desc') ? 'desc' : 'none';
 
-            // Remove existing sort classes
             table.querySelectorAll('th').forEach(th => {
                 th.classList.remove('sort-asc', 'sort-desc');
             });
 
-            // Determine new sort direction
             let newDirection = (currentDirection === 'none' || currentDirection === 'desc') ? 'asc' : 'desc';
             header.classList.add(newDirection === 'asc' ? 'sort-asc' : 'sort-desc');
 
-            // Sort rows
             rows.sort((a, b) => {
                 const aValue = a.cells[columnIndex].textContent.trim();
                 const bValue = b.cells[columnIndex].textContent.trim();
 
-                // Handle numeric values
                 const aNum = parseFloat(aValue.replace(/[^0-9.-]/g, ''));
                 const bNum = parseFloat(bValue.replace(/[^0-9.-]/g, ''));
 
@@ -299,14 +293,12 @@
                 }
             });
 
-            // Update table
             while (tbody.firstChild) {
                 tbody.removeChild(tbody.firstChild);
             }
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        // Toggle between table and chart view
         function toggleView() {
             const tableView = document.getElementById('tableView');
             const chartView = document.getElementById('chartView');
@@ -327,10 +319,8 @@
                 }
             }
 
-            // Save chart mode to localStorage
             localStorage.setItem('chartMode', modeSwitch.checked);
 
-            // Update URL to persist mode
             const url = new URL(window.location.href);
             if (modeSwitch.checked) {
                 url.searchParams.set('mode', 'chart');
@@ -340,23 +330,19 @@
             window.history.replaceState({}, '', url);
         }
 
-        // Update filter visibility
         function updateFilters() {
             const filterType = document.getElementById('filter_type').value;
             const monthFilter = document.getElementById('monthFilter');
             monthFilter.style.display = filterType === 'month_year' ? 'block' : 'none';
         }
 
-        // Render chart
         function renderChart() {
             const ctx = document.getElementById('statsChart').getContext('2d');
 
-            // Destroy existing chart if any
             if (currentChart) {
                 currentChart.destroy();
             }
 
-            // Prepare data
             const labels = [];
             const data = [];
             const backgroundColors = ['#FF6F61', '#6B7280', '#10B981', '#FBBF24', '#3B82F6', '#EF4444'];
@@ -369,7 +355,6 @@
                 {% endfor %}
             {% endif %}
 
-            // Create new chart
             currentChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -423,7 +408,6 @@
             });
         }
 
-        // Get X-axis title
         function getXAxisTitle() {
             const option = '{{ option }}';
             switch (option) {
@@ -433,23 +417,18 @@
             }
         }
 
-        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize filters
             updateFilters();
 
-            // Handle filter type change
             document.getElementById('filter_type').addEventListener('change', function() {
                 updateFilters();
                 document.getElementById('filterForm').submit();
             });
 
-            // Handle option change
             document.getElementById('option').addEventListener('change', function() {
                 document.getElementById('filterForm').submit();
             });
 
-            // Initialize chart mode from localStorage or URL
             const modeSwitch = document.getElementById('modeSwitch');
             const urlParams = new URLSearchParams(window.location.search);
             const urlMode = urlParams.get('mode');
@@ -462,17 +441,14 @@
                 modeSwitch.checked = storedMode === 'true';
             }
 
-            // Handle mode switch
             modeSwitch.addEventListener('change', toggleView);
 
-            // Render chart if in chart mode and data exists
             if (modeSwitch.checked && {{ has_data|yesno:"true,false" }}) {
                 document.getElementById('tableView').classList.remove('active');
                 document.getElementById('chartView').classList.add('active');
                 renderChart();
             }
 
-            // Show loading indicator on form submit
             document.getElementById('filterForm').addEventListener('submit', function() {
                 document.getElementById('loadingIndicator').classList.add('active');
             });

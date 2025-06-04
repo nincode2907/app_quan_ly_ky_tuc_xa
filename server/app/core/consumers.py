@@ -7,7 +7,8 @@ from asgiref.sync import sync_to_async
 from oauth2_provider.models import AccessToken
 from django.utils import timezone
 import logging
-import openai
+from .services.AI_service import AIService
+import asyncio
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -40,7 +41,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.user = access_token.user
         self.room_group_name = f"chat_{self.user.id}"
 
-        # Thêm người dùng vào nhóm tương ứng
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         if self.user.is_admin:
             await self.channel_layer.group_add("chat_admin", self.channel_name)
@@ -87,27 +87,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
             student_user_id = conversation_state.user.id
             serialized_message = await sync_to_async(lambda: MessageSerializer(message).data)()
 
-            # Gửi tới nhóm sinh viên
             await self.channel_layer.group_send(
                 f"chat_{student_user_id}",
                 {"type": "chat_message", "message": serialized_message}
             )
-            # Gửi tới nhóm admin
             await self.channel_layer.group_send(
                 "chat_admin",
                 {"type": "chat_message", "message": serialized_message}
             )
 
-            if not self.user.is_admin:
+            if not self.user.is_admin and not conversation_state.is_admin_handling:
                 await self.schedule_ai_response(conversation_state_id, student_user_id)
+            else:
+                print(f"Skipping AI response for conversation {conversation_state_id} because is_admin_handling={conversation_state.is_admin_handling}")
 
         except Exception as e:
             logger.error(f"Error sending message: {str(e)}")
 
     async def schedule_ai_response(self, conversation_state_id, student_user_id):
-        # import asyncio
-        # await asyncio.sleep(120)  # Chờ 2 phút
-
         conversation_state = await sync_to_async(ConversationState.objects.select_related('user').get)(
             id=conversation_state_id
         )
@@ -115,7 +112,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             conversation_state=conversation_state
         ).order_by('-created_at').first)()
 
-        if last_message and (timezone.now() - last_message.created_at).seconds >= 120:
+        if last_message and (timezone.now() - last_message.created_at).seconds >= 10:
             await self.handle_ai_response(conversation_state, student_user_id)
 
     async def handle_ai_response(self, conversation_state, student_user_id):
@@ -123,59 +120,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
             Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')[:10]
         ))()
 
-        system_contexts = await sync_to_async(lambda: list(
-            SystemContext.objects.filter(is_active=True)
-        ))()
+        print(f"Handling AI response for conversation {conversation_state.id} with {len(recent_messages)} recent messages.")
+        ai_response = await AIService.get_ai_response(conversation_state, recent_messages)
 
-        context = "Bạn là trợ lý AI của ký túc xá. Hãy trả lời lịch sự và chuyên nghiệp.\n"
-        if system_contexts:
-            context += "Đây là các ngữ cảnh, quy định, nội quy của ký túc xá:\n" + "\n".join(
-                [f"- {ctx.content}" for ctx in system_contexts]
-            ) + "\nNếu không tìm thấy thông tin, trả lời: 'Xin vui lòng chờ quản trị viên phản hồi.'"
-        else:
-            context += "Nếu không tìm thấy thông tin, trả lời: 'Xin vui lòng chờ quản trị viên phản hồi.'"
-
-        messages_for_ai = [{"role": "system", "content": context}]
-        for msg in recent_messages:
-            role = "assistant" if msg.is_from_ai else "user"
-            messages_for_ai.append({"role": role, "content": msg.content})
-
-        try:
-            response = await sync_to_async(openai.ChatCompletion.create)(
-                model="gpt-3.5-turbo",
-                messages=messages_for_ai
-            )
-            ai_response = response.choices[0].message['content'].strip()
-
-            ai_message = await sync_to_async(Message.objects.create)(
-                conversation_state=conversation_state,
-                sender=None,
-                content=ai_response,
-                is_from_ai=True
-            )
-
-            if "Xin vui lòng chờ quản trị viên phản hồi." in ai_response:
-                conversation_state.is_admin_handling = True
-                ai_message.is_pending_admin = True
-                await sync_to_async(ai_message.save)()
-            else:
-                conversation_state.is_admin_handling = False
-                conversation_state.last_message_at = ai_message.created_at
-            await sync_to_async(conversation_state.save)()
-
-            serialized_message = await sync_to_async(lambda: MessageSerializer(ai_message).data)()
-            await self.channel_layer.group_send(
-                f"chat_{student_user_id}",
-                {"type": "chat_message", "message": serialized_message}
-            )
-            await self.channel_layer.group_send(
-                "chat_admin",
-                {"type": "chat_message", "message": serialized_message}
-            )
-        except Exception as e:
-            logger.error(f"Error in AI response: {str(e)}")
+        if ai_response is None:
             conversation_state.is_admin_handling = True
             await sync_to_async(conversation_state.save)()
+            ai_response = "Xin vui lòng chờ quản trị viên phản hồi."
+
+        ai_message = await sync_to_async(Message.objects.create)(
+            conversation_state=conversation_state,
+            sender=None,
+            content=ai_response,
+            is_from_ai=True
+        )
+
+        if "Xin vui lòng chờ quản trị viên phản hồi" in ai_response:
+            conversation_state.is_admin_handling = True
+            ai_message.is_pending_admin = True
+            await sync_to_async(ai_message.save)()
+        else:
+            conversation_state.is_admin_handling = False
+            conversation_state.last_message_at = ai_message.created_at
+        await sync_to_async(conversation_state.save)()
+
+        serialized_message = await sync_to_async(lambda: MessageSerializer(ai_message).data)()
+        await self.channel_layer.group_send(
+            f"chat_{student_user_id}",
+            {"type": "chat_message", "message": serialized_message}
+        )
+        await self.channel_layer.group_send(
+            "chat_admin",
+            {"type": "chat_message", "message": serialized_message}
+        )
 
     async def chat_message(self, event):
         message = event['message']

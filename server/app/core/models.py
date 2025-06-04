@@ -13,7 +13,6 @@ from django.core.files import File
 from django.core.exceptions import ValidationError
 from ckeditor_uploader.fields import RichTextUploadingField
 from django.contrib.auth.hashers import make_password, check_password
-# from .utils import validate_image_extension
 
 MAX_VIOLATIONS = settings.MAX_VIOLATIONS
 
@@ -279,24 +278,20 @@ class CheckInOutLog(models.Model):
 
     student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name="checkinout_logs")
     check_time = models.DateTimeField(default=timezone.now)
-    date = models.DateField(editable=False)  # Lấy tự động từ check_time
+    date = models.DateField(editable=False) 
     building = models.ForeignKey('Building', on_delete=models.CASCADE, related_name="checkinout_logs")
-    qr_code = models.ForeignKey('QRCode', on_delete=models.CASCADE, related_name="checkinout_logs")  # Liên kết với QRCode
+    qr_code = models.ForeignKey('QRCode', on_delete=models.CASCADE, related_name="checkinout_logs")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES)
 
     def save(self, *args, **kwargs):
-        # Lấy date từ check_time
         self.date = self.check_time.date()
 
-        # Kiểm tra sinh viên bị khóa
         if self.student.is_blocked:
             raise ValidationError(f"Sinh viên {self.student.full_name} đã bị khóa, không thể check-in/out")
 
-        # Kiểm tra giới tính phù hợp với tòa
         if self.student.gender != self.building.gender:
             raise ValidationError(f"Sinh viên {self.student.full_name} ({self.student.gender}) không được phép vào tòa {self.building.name} ({self.building.area.name}) (dành cho {self.building.gender})")
 
-        # Kiểm tra phòng trong tòa
         if not self.student.room or self.student.room.building != self.building:
             raise ValidationError(f"Sinh viên {self.student.full_name} không có phòng trong tòa {self.building.name} ({self.building.area.name})")
 
@@ -457,11 +452,11 @@ class PaymentTransaction(models.Model):
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='transactions')
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.SET_NULL, null=True)
     amount = models.IntegerField()
-    transaction_id = models.CharField(max_length=100, unique=True)  # ID giao dịch từ MoMo
+    transaction_id = models.CharField(max_length=100, unique=True)  
     status = models.CharField(max_length=20, choices=TRANSACTION_STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    response_data = models.JSONField(null=True, blank=True)  # Lưu dữ liệu trả về từ MoMo
+    response_data = models.JSONField(null=True, blank=True)  
 
     def __str__(self):
         return f"Giao dịch {self.transaction_id} - {self.status}"
@@ -580,8 +575,8 @@ class SystemContext(models.Model):
     
 class ConversationState(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='conversation_state')
-    is_admin_handling = models.BooleanField(default=False)  # Nếu True thì admin sẽ trả lời
-    last_message_at = models.DateTimeField(null=True, blank=True)  # Thời gian tin nhắn cuối
+    is_admin_handling = models.BooleanField(default=False)  
+    last_message_at = models.DateTimeField(null=True, blank=True)  
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

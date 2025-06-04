@@ -142,5 +142,4 @@ class MoMoService:
         
         return transaction.status == 'SUCCESS'
     
-# Register services
 PaymentService.register_service('momo', MoMoService)

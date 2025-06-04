@@ -23,13 +23,12 @@ def generate_random_password(length=8):
     safe_punctuation = safe_punctuation.replace('\"', '')
     
     characters = (
-        string.ascii_lowercase +  # chữ thường
-        string.ascii_uppercase +  # chữ hoa
-        string.digits +           # số 0-9
-        safe_punctuation          # ký tự đặc biệt
+        string.ascii_lowercase +  
+        string.ascii_uppercase + 
+        string.digits +          
+        safe_punctuation         
     )
     
-    # Đảm bảo mật khẩu có ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
     password = [
         random.choice(string.ascii_lowercase),
         random.choice(string.ascii_uppercase),
@@ -37,11 +36,9 @@ def generate_random_password(length=8):
         random.choice(safe_punctuation),
     ]
     
-    # Sinh các ký tự còn lại
     for _ in range(length - 4):
         password.append(random.choice(characters))
     
-    # Xáo trộn mật khẩu
     random.shuffle(password)
     
     return ''.join(password)

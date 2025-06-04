@@ -26,7 +26,6 @@ MY_DOMAIN = "www.pythonanywhere.com"
 
 AUTH_USER_MODEL = 'core.User'
 
-# Cloudinary
 import cloudinary
 
 cloudinary.config(
@@ -131,8 +130,8 @@ REST_FRAMEWORK = {
 
 OAUTH2_PROVIDER = {
     'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
-    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,  # Access token hết hạn sau 1 giờ
-    'REFRESH_TOKEN_EXPIRE_SECONDS': 1209600,  # Refresh token hết hạn sau 14 ngày
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600, 
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 1209600,
     'SCOPES': {
         'read': 'Read scope',
         'write': 'Write scope',
@@ -191,9 +190,6 @@ CKEDITOR_CONFIGS = {
     },
 }
 
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -206,18 +202,18 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    # {
-    #     'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    # },
-    # {
-    #     'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    # },
-    # {
-    #     'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    # },
-    # {
-    #     'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    # },
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
 ]
 
 # settings Gmail SMTP

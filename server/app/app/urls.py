@@ -37,7 +37,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path('jet/', include('jet.urls')),  # UI (bắt buộc)
+    path('jet/', include('jet.urls')), 
     path('jet/dashboard/', include('jet.dashboard.urls', namespace='jet-dashboard')),
     path('ckeditor/', include('ckeditor_uploader.urls')),
     re_path(r'^swagger(?P<format>\.json|\.yaml)$',

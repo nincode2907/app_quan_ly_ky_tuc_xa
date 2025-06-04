@@ -59,34 +59,29 @@ class DormitoryTestCase(TestCase):
         self.assertEqual(self.student_female.course, "DH23CNTT")
     
     def test_student_room_gender_validation(self):
-        # Gán sinh viên nam vào phòng nam (OK)
         self.student_male.room = self.room_male
         self.student_male.save()
         self.assertEqual(self.student_male.room, self.room_male)
 
-        # Gán sinh viên nữ vào phòng nam (phải báo lỗi)
         self.student_female.room = self.room_male
         with self.assertRaises(ValueError) as context:
             self.student_female.save()
         self.assertIn("chỉ dành cho male", str(context.exception))
     
     def test_student_room_available_slots(self):
-        # Gán sinh viên nam vào phòng 101
         self.student_male.room = self.room_male
         self.student_male.save()
         self.room_male.refresh_from_db()
-        self.assertEqual(self.room_male.available_slots, 1)  # Giảm từ 2 xuống 1
+        self.assertEqual(self.room_male.available_slots, 1) 
 
-        # Chuyển sinh viên nam sang phòng 201
         self.student_male.room = self.room_female
         self.student_male.save()
         self.room_male.refresh_from_db()
         self.room_female.refresh_from_db()
-        self.assertEqual(self.room_male.available_slots, 2)  # Tăng lại lên 2
-        self.assertEqual(self.room_female.available_slots, 1)  # Giảm từ 2 xuống 1
+        self.assertEqual(self.room_male.available_slots, 2) 
+        self.assertEqual(self.room_female.available_slots, 1)  
     
     def test_checkinout_gender_validation(self):
-        # Sinh viên nam check-in ở tòa nam (OK)
         log = CheckInOutLog(
             student=self.student_male,
             building=self.building_male,
@@ -97,7 +92,6 @@ class DormitoryTestCase(TestCase):
         self.student_male.save()
         log.save()
 
-        # Sinh viên nữ check-in ở tòa nam (phải báo lỗi)
         log = CheckInOutLog(
             student=self.student_female,
             building=self.building_male,
@@ -123,16 +117,14 @@ class DormitoryTestCase(TestCase):
         client = Client()
         client.force_login(self.user_male)
 
-        # Truy cập trang thêm Student
         response = client.get(reverse('admin:core_student_add'))
-        self.assertNotContains(response, 'name="course"')  # Ô nhập course không xuất hiện
+        self.assertNotContains(response, 'name="course"')  
         
     def test_student_admin_list_display(self):
         client = Client()
         client.force_login(self.user_male)
 
-        # Truy cập danh sách Student
         response = client.get(reverse('admin:core_student_changelist'))
-        self.assertContains(response, "DH23CNTT")  # Giá trị course hiển thị trong danh sách
+        self.assertContains(response, "DH23CNTT")  
         
     

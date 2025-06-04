@@ -95,7 +95,7 @@ class QRCodeSerializer(serializers.ModelSerializer):
 class CheckInOutLogSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
     building = BuildingSerializer(read_only=True)
-    qr_code = QRCodeSerializer(read_only=True)  # Serialize đối tượng QRCode
+    qr_code = QRCodeSerializer(read_only=True)  
 
     class Meta:
         model = models.CheckInOutLog

@@ -10,19 +10,17 @@ class EmailService:
     def send_new_password(email):
         try:
             user = User.objects.get(email=email)
-            student = user.students  # Lấy Student để lấy full_name
+            student = user.students 
         except User.DoesNotExist:
             raise ValueError("Email không tồn tại")
         except Student.DoesNotExist:
             raise ValueError("Không tìm thấy thông tin sinh viên")
 
-        # Tạo mật khẩu mới
         new_password = generate_random_password()
         user.set_password(new_password)
         user.is_first_login = True
         user.save()
 
-        # Gửi email
         subject = 'Khôi Phục Mật Khẩu Ký Túc Xá Sinh Viên'
         html_message = render_to_string(index.templates['e_reset_password'], {
             'full_name': student.full_name,

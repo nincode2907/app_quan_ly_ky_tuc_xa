@@ -39,8 +39,13 @@ export default StyleSheet.create({
         width: 80
     },
 
+    reportType: {
+        fontSize: 14,
+        color: '#1E319D'
+    },
+
     reportText: {
-        fontSize: 15,
+        fontSize: 14,
     },
 
     reportTime: {
@@ -66,7 +71,7 @@ export default StyleSheet.create({
 
     supportButtonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
     },
 });

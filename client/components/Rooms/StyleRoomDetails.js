@@ -20,14 +20,14 @@ export default StyleSheet.create({
         alignItems: 'center',
     },
     roomName: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: 'bold',
         marginBottom: 10,
         flex: 1,
         flexWrap: 'wrap',
     },
     roomPrice: {
-        fontSize: 18,
+        fontSize: 16,
         color: '#E10000',
         fontWeight: '600',
         marginBottom: 15,
@@ -39,18 +39,18 @@ export default StyleSheet.create({
     },
     infoText: {
         marginLeft: 10,
-        fontSize: 16,
+        fontSize: 15,
         color: '#B0B0B0',
     },
     title: {
         marginTop: 10,
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: 'bold',
         color: '#333',
     },
     description: {
         marginTop: 10,
-        fontSize: 16,
+        fontSize: 15,
         lineHeight: 22,
         color: '#333',
     },
@@ -68,11 +68,11 @@ export default StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 30,
         backgroundColor: '#1E319D',
-        borderRadius: 20,
+        borderRadius: 15,
     },
     buttonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 'bold',
     },
 });

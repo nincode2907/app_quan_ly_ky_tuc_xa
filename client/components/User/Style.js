@@ -2,9 +2,11 @@ import { StyleSheet } from "react-native";
 
 export default StyleSheet.create({
     container: {
+        flex: 1, 
         backgroundColor: '#fff',
-        marginTop: 100,
+        paddingTop: 100,
     },
+
     logoContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -18,13 +20,13 @@ export default StyleSheet.create({
     },
     logoText: {
         color: '#E3C7A5',
-        fontSize: 20,
+        fontSize: 15,
         fontWeight: 'bold',
         textAlign: 'center'
     },
     loginText: {
         color: '#1E319D',
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: 'bold',
         marginTop: 60,
         marginLeft: 20,
@@ -46,10 +48,10 @@ export default StyleSheet.create({
         backgroundColor: "#1E319D",
         borderRadius: 5,
         marginTop: 20,
-      },      
+    },
     loginButtonText: {
         color: "#E3C7A5",
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: "bold",
     },
     googleLogin: {
@@ -72,21 +74,21 @@ export default StyleSheet.create({
     },
     googleLoginText: {
         color: "#B0B0B0",
-        fontSize: 15,
+        fontSize: 14,
     },
     signupContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: "center",
         marginTop: 60,
-      },
-      signupPrompt: {
+    },
+    signupPrompt: {
         color: '#B0B0B0',
-        fontSize: 16,
-      },
-      signupLink: {
+        fontSize: 14,
+    },
+    signupLink: {
         color: '#1E319D',
         fontSize: 16,
         fontWeight: 'bold',
-      },    
+    },
 });

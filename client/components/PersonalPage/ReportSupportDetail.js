@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DatePicker from 'react-native-date-picker';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +21,7 @@ const ReportSupportDetail = () => {
 
     const [selectedIssue, setSelectedIssue] = useState('');
     const [description, setDescription] = useState('');
+    const [title, setTitle] = useState('');
     const [startDate, setStartDate] = useState(new Date());
     const [showStartPicker, setShowStartPicker] = useState(false);
 
@@ -72,16 +73,21 @@ const ReportSupportDetail = () => {
             Alert.alert('Lỗi', 'Vui lòng chọn loại yêu cầu và nhập mô tả.');
             return;
         }
+        if (!title.trim()) {
+            Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề cho sự cố.');
+            return;
+        }
 
         try {
             const requestData = {
-                request_type: selectedIssue,
+                report_type: selectedIssue,
                 description: description,
+                title: title,
             };
 
             console.log("Gửi requestData:", requestData);
 
-            await axiosInstance.post(endpoints['supportRequest'], requestData);
+            await axiosInstance.post(endpoints['issueReport'], requestData);
 
             Alert.alert('Thành công', 'Yêu cầu của bạn đã được gửi!');
             nav.goBack();
@@ -97,98 +103,121 @@ const ReportSupportDetail = () => {
     if (loading) return <Text style={{ padding: 20 }}>Đang tải thông tin...</Text>;
 
     return (
-        <ScrollView style={styles.container}>
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
-                    <Ionicons name="person" size={14} color="#fff" />
-                </View>
-                <View style={styles.sectionContent}>
-                    <Text style={styles.text}>Họ và tên:</Text>
-                    <TextInput style={styles.input} value={name} onChangeText={setName} />
-                    <Text style={styles.text}>Mã số sinh viên:</Text>
-                    <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} />
-                    <Text style={styles.text}>Số điện thoại:</Text>
-                    <TextInput style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
-                    <Text style={styles.text}>Email trường:</Text>
-                    <TextInput style={styles.input} keyboardType="email-address" value={email} onChangeText={setEmail} />
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Thông tin phòng</Text>
-                    <Ionicons name="home" size={14} color="#fff" />
-                </View>
-                <View style={styles.sectionContent}>
-                    <Text style={styles.text}>Số phòng:</Text>
-                    <TextInput style={styles.input} value={roomNumber} onChangeText={setRoomNumber} />
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Dạng sự cố</Text>
-                    <Ionicons name="construct" size={14} color="#fff" />
-                </View>
-                <View style={styles.sectionContent}>
-                    <Text style={styles.label}>Chọn loại sự cố gặp phải</Text>
-                    <View style={styles.dropdownContainer}>
-                        <Picker
-                            selectedValue={selectedIssue}
-                            onValueChange={(value) => setSelectedIssue(value)}
-                            style={styles.picker}
-                        >
-                            <Picker.Item label="─── Chọn dạng sự cố ───" value="" enabled={false} />
-                            <Picker.Item label="Yêu cầu sửa chữa" value="REPAIR" />
-                            <Picker.Item label="Phản ánh vấn đề" value="FEEDBACK" />
-                        </Picker>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={80}
+        >
+            <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
+                        <Ionicons name="person" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.sectionContent}>
+                        <Text style={styles.text}>Họ và tên:</Text>
+                        <TextInput style={styles.input} value={name} onChangeText={setName} />
+                        <Text style={styles.text}>Mã số sinh viên:</Text>
+                        <TextInput style={styles.input} value={studentId} onChangeText={setStudentId} />
+                        <Text style={styles.text}>Số điện thoại:</Text>
+                        <TextInput style={styles.input} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+                        <Text style={styles.text}>Email trường:</Text>
+                        <TextInput style={styles.input} keyboardType="email-address" value={email} onChangeText={setEmail} />
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Chi tiết sự cố</Text>
-                    <Ionicons name="calendar" size={14} color="#fff" />
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Thông tin phòng</Text>
+                        <Ionicons name="home" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.sectionContent}>
+                        <Text style={styles.text}>Số phòng:</Text>
+                        <TextInput style={styles.input} value={roomNumber} onChangeText={setRoomNumber} />
+                    </View>
                 </View>
-                <View style={styles.sectionContent}>
-                    <Text style={styles.text}>Mô tả chi tiết:</Text>
-                    <TextInput
-                        style={[styles.input, { height: 80 }]}
-                        value={description}
-                        onChangeText={setDescription}
-                        multiline
-                    />
-                    <Text style={styles.text}>Ngày bắt đầu sự cố:</Text>
-                    <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.dateInput}>
-                        <Text>{startDate.toLocaleDateString()}</Text>
-                        <Ionicons name="calendar" size={20} color="#000" />
+
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Dạng sự cố</Text>
+                        <Ionicons name="construct" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.sectionContent}>
+                        <Text style={styles.label}>Chọn loại sự cố gặp phải</Text>
+                        <View style={styles.dropdownContainer}>
+                            <Picker
+                                selectedValue={selectedIssue}
+                                onValueChange={(value) => setSelectedIssue(value)}
+                                style={styles.picker}
+                            >
+                                <Picker.Item label="─── Chọn dạng sự cố ───" value="" enabled={false} />
+                                <Picker.Item label="Yêu cầu sửa chữa" value="REPAIR" />
+                                <Picker.Item label="Báo cáo sự cố" value="ISSUE" />
+                            </Picker>
+                        </View>
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Chủ đề</Text>
+                        <Ionicons name="chatbox-ellipses" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.sectionContent}>
+                        <Text style={styles.text}>Chủ đề:</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={title}
+                            onChangeText={setTitle}
+                            placeholder="Nhập tiêu đề ngắn cho sự cố..."
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Chi tiết sự cố</Text>
+                        <Ionicons name="calendar" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.sectionContent}>
+                        <Text style={styles.text}>Mô tả chi tiết:</Text>
+                        <TextInput
+                            style={[styles.input, { height: 80 }]}
+                            value={description}
+                            onChangeText={setDescription}
+                            multiline
+                        />
+                        <Text style={styles.text}>Ngày bắt đầu sự cố:</Text>
+                        <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.dateInput}>
+                            <Text>{startDate.toLocaleDateString()}</Text>
+                            <Ionicons name="calendar" size={20} color="#000" />
+                        </TouchableOpacity>
+                        <DatePicker
+                            modal
+                            open={showStartPicker}
+                            date={startDate}
+                            mode="date"
+                            onConfirm={(date) => {
+                                setShowStartPicker(false);
+                                setStartDate(date);
+                            }}
+                            onCancel={() => setShowStartPicker(false)}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => nav.goBack()}>
+                        <Text style={styles.btnText}>Hủy</Text>
                     </TouchableOpacity>
-                    <DatePicker
-                        modal
-                        open={showStartPicker}
-                        date={startDate}
-                        mode="date"
-                        onConfirm={(date) => {
-                            setShowStartPicker(false);
-                            setStartDate(date);
-                        }}
-                        onCancel={() => setShowStartPicker(false)}
-                    />
+                    <TouchableOpacity style={styles.sendBtn} onPress={handleSubmit}>
+                        <Text style={styles.btnText}>Gửi</Text>
+                    </TouchableOpacity>
                 </View>
-            </View>
-
-            <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => nav.goBack()}>
-                    <Text style={styles.btnText}>Hủy</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.sendBtn} onPress={handleSubmit}>
-                    <Text style={styles.btnText}>Gửi</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
+
 };
 
 export default ReportSupportDetail;

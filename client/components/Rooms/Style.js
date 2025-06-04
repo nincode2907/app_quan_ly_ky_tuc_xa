@@ -11,6 +11,7 @@ export default StyleSheet.create({
         backgroundColor: '#1E319D',
         paddingHorizontal: 10,
         paddingVertical: 10,
+
     },
     searchInput: {
         marginTop: 10,

@@ -1,8 +1,8 @@
-import axiosInstance from "../../configs/AxiosInterceptor";
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Image, Alert, Linking, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, Image, Alert, Linking, ActivityIndicator, ScrollView } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { authApis, endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import styles from './StyleExtensionsPayBillsDetails';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
@@ -18,9 +18,28 @@ const ExtensionsPayBillsDetails = () => {
 
     const [isPaying, setIsPaying] = useState(false);
     const [token, setToken] = useState(null);
-    const [modalVisible, setModalVisible] = useState(false);
     const [paymentMethodId, setPaymentMethodId] = useState(null);
     const [linkPayMeImg, setLinkPayMeImg] = useState(null);
+
+
+    const fetchBillDetails = useCallback(async () => {
+        if (!token) return;
+        try {
+            setLoading(true);
+            const res = await axiosInstance.get(`${endpoints.bills}${billId}/`, {
+                timeout: 10000,
+            });
+            setBill(res.data);
+
+
+        } catch (error) {
+            console.error("Lỗi khi lấy dữ liệu hóa đơn:", error);
+            Alert.alert("Lỗi", "Không thể tải thông tin hóa đơn. Vui lòng thử lại.");
+        } finally {
+            setLoading(false);
+        }
+    }, [billId, token]);
+
 
     const fetchTokenAndPaymentMethods = useCallback(async () => {
         try {
@@ -30,6 +49,7 @@ const ExtensionsPayBillsDetails = () => {
             const response = await authApis(storedToken).get(endpoints.paymentMethods, {
                 timeout: 10000,
             });
+            // console.log("Payment methods response:", response.data);
             const momoMethod = response.data.results.find((method) => method.name === "MoMo");
             if (momoMethod) {
                 setPaymentMethodId(momoMethod.id);
@@ -45,24 +65,9 @@ const ExtensionsPayBillsDetails = () => {
         }
     }, [nav]);
 
-    const fetchBillDetails = useCallback(async () => {
-        if (!token) return;
-        try {
-            setLoading(true);
-            const res = await axiosInstance.get(`${endpoints.bills}${billId}/`, {
-                timeout: 10000,
-            });
-            setBill(res.data);
-        } catch (error) {
-            console.error("Lỗi khi lấy dữ liệu hóa đơn:", error);
-            Alert.alert("Lỗi", "Không thể tải thông tin hóa đơn. Vui lòng thử lại.");
-        } finally {
-            setLoading(false);
-        }
-    }, [billId, token]);
-
     useFocusEffect(
         useCallback(() => {
+            // console.log("useFocusEffect billId:", billId);
             setLoading(true);
             fetchTokenAndPaymentMethods().then((success) => {
                 if (success) {
@@ -80,7 +85,7 @@ const ExtensionsPayBillsDetails = () => {
                 try {
                     const transactionId = new URL(url).searchParams.get("orderId");
                     if (transactionId && token) {
-                        const response = await authApis(token).get(
+                        const response = await axiosInstance.get(
                             `${endpoints.paymentTransactions}?transaction_id=${transactionId}`,
                             { timeout: 10000 }
                         );
@@ -123,7 +128,7 @@ const ExtensionsPayBillsDetails = () => {
             formData.append("bill_id", billId);
             formData.append("payment_method_id", paymentMethodId);
 
-            const response = await authApis(token).post(endpoints.initiatePayment, formData, {
+            const response = await axiosInstance.post(endpoints.initiatePayment, formData, {
                 headers: { "Content-Type": "multipart/form-data" },
                 timeout: 10000,
             });
@@ -183,117 +188,93 @@ const ExtensionsPayBillsDetails = () => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.section}>
-                <View style={styles.infoButton}>
-                    <Text style={styles.infoButtonText}>Thông tin sinh viên & phòng</Text>
+            <ScrollView style={{ flex: 1 }}>
+                <View style={styles.section}>
+                    <View style={styles.infoButton}>
+                        <Text style={styles.infoButtonText}>Thông tin sinh viên & phòng</Text>
+                    </View>
+                    <Text style={styles.infoText}>Họ và tên & MSSV: {student.full_name} - {student.student_id}</Text>
+                    <Text style={styles.infoText}>Khoa: {student.faculty?.name || "Chưa có"}</Text>
+                    <Text style={styles.infoText}>
+                        Tòa nhà - Số phòng: {student.room ? student.room.building.name + " - " + student.room.number : "Chưa có"}
+                    </Text>
+                    <Text style={styles.infoText}>
+                        Số lượng sinh viên: {student.room ? student.room.room_type.capacity : "Chưa có"} sinh viên
+                    </Text>
                 </View>
-                <Text style={styles.infoText}>Họ và tên & MSSV: {student.full_name} - {student.student_id}</Text>
-                <Text style={styles.infoText}>Khoa: {student.faculty?.name || "Chưa có"}</Text>
-                <Text style={styles.infoText}>
-                    Tòa nhà - Số phòng: {student.room ? student.room.building.name + " - " + student.room.number : "Chưa có"}
-                </Text>
-                <Text style={styles.infoText}>
-                    Số lượng sinh viên: {student.room ? student.room.room_type.capacity : "Chưa có"} sinh viên
-                </Text>
-            </View>
 
-            <View style={styles.billSection}>
-                <View style={styles.billHeaderRow}>
-                    <Text style={styles.monthText}>{bill.description?.split('\n')[0]}</Text>
-                    <View style={styles.statusBox}>
-                        <Ionicons name={statusIcon} size={16} color={statusColor} />
-                        <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
+                <View style={styles.billSection}>
+                    <View style={styles.billHeaderRow}>
+                        <Text style={styles.monthText}>{bill.description?.split('\n')[0]}</Text>
+                        <View style={styles.statusBox}>
+                            <Ionicons name={statusIcon} size={16} color={statusColor} />
+                            <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.tableHeader}>
+                        <Text style={styles.tableHeaderCell}>STT</Text>
+                        <Text style={styles.tableHeaderCell}>Khoản thu</Text>
+                        <Text style={styles.tableHeaderCell}>Đơn giá (VNĐ)</Text>
+                    </View>
+
+                    {bill.description
+                        .split('\n')                      // Tách từng dòng
+                        .slice(1)                         // Bỏ dòng đầu tiên (ví dụ: "Hóa đơn tháng 5/2025")
+                        .map((item, index) => {
+                            const parts = item.split(':'); // Tách tên khoản và số tiền
+                            const title = parts[0].replace('- ', '').trim();
+                            const value = parts[1]?.trim().replace(' VNĐ', '') || '0';
+                            return (
+                                <View style={styles.tableRow} key={index}>
+                                    <Text style={styles.tableCell}>{index + 1}</Text>
+                                    <Text style={styles.tableCell}>{title}</Text>
+                                    <Text style={styles.tableCell}>{Number(value).toLocaleString()}₫</Text>
+                                </View>
+                            );
+                        })}
+
+                    <View style={styles.totalRow}>
+                        <Text style={styles.totalLabel}>Tổng chi phí cần trả</Text>
+                        <Text style={styles.totalAmount}>{Number(bill.amount).toLocaleString()}₫</Text>
+                    </View>
+
+                    <View style={{ marginTop: 10 }}>
+                        <Text style={styles.infoText}>Ngày đến hạn: {formatDate(bill.due_date)}</Text>
+                        <Text style={styles.infoText}>Ngày thanh toán: {bill.paid_date ? formatDate(bill.paid_date) : "Chưa thanh toán"}</Text>
                     </View>
                 </View>
 
-                <View style={styles.tableHeader}>
-                    <Text style={styles.tableHeaderCell}>STT</Text>
-                    <Text style={styles.tableHeaderCell}>Khoản thu</Text>
-                    <Text style={styles.tableHeaderCell}>Đơn giá (VNĐ)</Text>
+                <View style={styles.emailSection}>
+                    <View style={styles.emailButton}>
+                        <Text style={styles.emailLabel}>Email nhận hóa đơn điện tử</Text>
+                    </View>
+                    <Text style={styles.emailText}>{email}</Text>
                 </View>
+            </ScrollView>
 
-                {bill.description
-                    .split('\n')                      // Tách từng dòng
-                    .slice(1)                         // Bỏ dòng đầu tiên (ví dụ: "Hóa đơn tháng 5/2025")
-                    .map((item, index) => {
-                        const parts = item.split(':'); // Tách tên khoản và số tiền
-                        const title = parts[0].replace('- ', '').trim();
-                        const value = parts[1]?.trim().replace(' VNĐ', '') || '0';
-                        return (
-                            <View style={styles.tableRow} key={index}>
-                                <Text style={styles.tableCell}>{index + 1}</Text>
-                                <Text style={styles.tableCell}>{title}</Text>
-                                <Text style={styles.tableCell}>{Number(value).toLocaleString()}₫</Text>
-                            </View>
-                        );
-                    })}
 
-                <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Tổng chi phí cần trả</Text>
-                    <Text style={styles.totalAmount}>{Number(bill.amount).toLocaleString()}₫</Text>
-                </View>
-
-                <View style={{ marginTop: 10 }}>
-                    <Text style={styles.infoText}>Ngày đến hạn: {formatDate(bill.due_date)}</Text>
-                    <Text style={styles.infoText}>Ngày thanh toán: {bill.paid_date ? formatDate(bill.paid_date) : "Chưa thanh toán"}</Text>
-                </View>
-            </View>
-
-            <View style={styles.emailSection}>
-                <View style={styles.emailButton}>
-                    <Text style={styles.emailLabel}>Email nhận hóa đơn điện tử</Text>
-                </View>
-                <Text style={styles.emailText}>{email}</Text>
-            </View>
-
-            {/* onPress={() => setModalVisible(true)} */}
             <TouchableOpacity
-                style={[styles.payButton, isPaying || bill.status === "PAID" ? styles.disabledButton : {}]}
+                style={[styles.payButton, (isPaying || bill.status === "PAID") && styles.disabledButton]}
                 onPress={initiatePayment}
                 disabled={isPaying || bill.status === "PAID"}
             >
                 <View style={styles.pay}>
-                    {bill.status === "UNPAID" ? (
+                    {bill.status === "UNPAID" && (
                         <Image
                             source={{
-                                uri: linkPayMeImg || "https://res.cloudinary.com/dywyrpfw7/image/upload/v1746024601/KTX-SV/awv3f0rodnthvyfajmrb.jpg",
+                                uri: linkPayMeImg || "https://res.cloudinary.com/dywyrpfw7/image/upload/v1746024600/KTX-SV/jumz5ambmmp9craluwoo.png",
                             }}
                             style={styles.payIcon}
-                        />) : null}
+                        />
+                    )}
                     <Text style={styles.payText}>
                         {isPaying ? "Đang xử lý..." : bill.status === "PAID" ? "Đã thanh toán" : "Thanh toán qua MoMo"}
                     </Text>
                 </View>
             </TouchableOpacity>
 
-            {/* <Modal
-                visible={modalVisible}
-                animationType="fade"
-                transparent
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <Pressable style={styles.overlay} onPress={() => setModalVisible(false)}>
-                    <View style={styles.dialog}>
-                        <Text style={styles.dialogTitle}>Chọn phương thức thanh toán</Text>
-                        <View style={styles.dialogContainer}>
-                            {[...Array(3)].map((_, i) => (
-                                <TouchableOpacity key={i} style={styles.dialogOption}>
-                                    <Image
-                                        source={{
-                                            uri: [
-                                                "https://res.cloudinary.com/dywyrpfw7/image/upload/v1746025250/KTX-SV/lwifxokllu6cnajdk0cu.png",
-                                                // "https://res.cloudinary.com/dywyrpfw7/image/upload/v1746024601/KTX-SV/awv3f0rodnthvyfajmrb.jpg",
-                                                // "https://res.cloudinary.com/dywyrpfw7/image/upload/v1746024601/KTX-SV/tjjvcmk89nr19etusv1m.jpg"
-                                            ][i]
-                                        }}
-                                        style={styles.paymentIcon}
-                                    />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    </View>
-                </Pressable>
-            </Modal> */}
+
         </View>
     );
 };

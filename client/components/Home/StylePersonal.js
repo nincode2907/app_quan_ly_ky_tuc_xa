@@ -22,7 +22,7 @@ export default StyleSheet.create({
 
     headerText: {
         color: '#E3C7A5',
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: 'bold',
     },
 
@@ -116,13 +116,13 @@ export default StyleSheet.create({
         borderTopRightRadius: 20,
     },
     dialogText: {
-        fontSize: 18,
+        fontSize: 15,
         paddingVertical: 10,
         textAlign: 'center',
     },
 
     dialogLogout: {
-        fontSize: 18,
+        fontSize: 15,
         paddingVertical: 10,
         textAlign: 'center',
         color: 'red'

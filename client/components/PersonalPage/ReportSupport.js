@@ -8,7 +8,7 @@ import axiosInstance from "../../configs/AxiosInterceptor";
 import { endpoints } from '../../configs/Apis';
 
 const ReportSupport = () => {
-    const [selectedStatus, setSelectedStatus] = useState('pending'); // 'pending' | 'approved' | 'rejected'
+    const [selectedStatus, setSelectedStatus] = useState('pending');
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -19,7 +19,7 @@ const ReportSupport = () => {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axiosInstance.get(endpoints.supportRequest);
+            const res = await axiosInstance.get(endpoints.issueReport);
             setData(res.data.results);
             // console.log("Response data:", res.data);
         } catch (err) {
@@ -61,8 +61,8 @@ const ReportSupport = () => {
 
     const STATUS = {
         pending: 'PENDING',
-        approved: 'APPROVED',
-        rejected: 'REJECTED',
+        approved: 'RESOLVED',
+        // rejected: 'REJECTED',
     };
     const filteredData = data.filter(item => item.status === STATUS[selectedStatus]);
 
@@ -84,11 +84,11 @@ const ReportSupport = () => {
                         size={25}
                         color={getLevelColor(item.priority)}
                     />
-                    <Text style={styles.reportType}>{item.request_type}
+                    <Text style={styles.reportType}>{item.report_type}
                     </Text>
                 </View>
-                <View style={{ flex: 1, marginLeft: 10, gap: 5 }}>
-                    <Text style={styles.reportText}>{item.description}</Text>
+                <View style={{ flex: 1, marginLeft: 5, gap: 5 }}>
+                    <Text style={styles.reportText}>{item.title}</Text>
                     <Text style={styles.reportTime}>{formatDateTime(item.created_at)}</Text>
                 </View>
             </View>
@@ -105,7 +105,7 @@ const ReportSupport = () => {
                     onPress={() => setSelectedStatus('pending')}
                     style={[styles.chip, selectedStatus === 'pending' && styles.chipSelected]}
                 >
-                    Đang chờ
+                    Chưa xử lý
                 </Chip>
                 <Chip
                     icon="check-circle-outline"
@@ -113,16 +113,16 @@ const ReportSupport = () => {
                     onPress={() => setSelectedStatus('approved')}
                     style={[styles.chip, selectedStatus === 'approved' && styles.chipSelected]}
                 >
-                    Đã duyệt
+                    Đã xử lý
                 </Chip>
-                <Chip
+                {/* <Chip
                     icon="close-circle-outline"
                     selected={selectedStatus === 'rejected'}
                     onPress={() => setSelectedStatus('rejected')}
                     style={[styles.chip, selectedStatus === 'rejected' && styles.chipSelected]}
                 >
                     Đã từ chối
-                </Chip>
+                </Chip> */}
             </View>
 
             {loading ? (

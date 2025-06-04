@@ -20,6 +20,8 @@ export default StyleSheet.create({
     },
     subtitle: {
         color: '#E3C7A5',
-        fontSize: 20,
+        fontSize: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

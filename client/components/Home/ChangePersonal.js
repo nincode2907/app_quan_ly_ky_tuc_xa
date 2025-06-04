@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { authApis, endpoints } from "../../configs/Apis";
+import { endpoints, authApis } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axiosInstance from "../../configs/AxiosInterceptor";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
@@ -13,12 +13,12 @@ const ChangePersonal = ({ route, navigation }) => {
     } = route.params || {};
 
     const [newName, setNewName] = useState(name);
-    const [newEmail, setNewEmail] = useState(email);
     const [newPhone, setNewPhone] = useState(phone);
     const [newAddress, setNewAddress] = useState(address);
     const [newGender, setNewGender] = useState(gender);
     const [newBirthday, setNewBirthday] = useState(birthday);
     const [newAvatar, setNewAvatar] = useState(avatar);
+    const [newAvatarBase64, setNewAvatarBase64] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const pickImage = async () => {
@@ -29,17 +29,23 @@ const ChangePersonal = ({ route, navigation }) => {
         }
 
         try {
+
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 1,
-                presentationStyle: 'fullScreen',
+                quality: 0.1, // giảm chất lượng
+                base64: true, // thêm dòng này để lấy base64 trực tiếp
             });
 
             if (!result.canceled) {
-                setNewAvatar(result.assets[0].uri);
+                const imageUri = result.assets[0].uri;
+                const imageBase64 = result.assets[0].base64;
+
+                setNewAvatar(imageUri);
+                setNewAvatarBase64(imageBase64);
             }
+
         } catch (error) {
             console.log("Lỗi khi mở thư viện ảnh:", error);
         }
@@ -48,43 +54,59 @@ const ChangePersonal = ({ route, navigation }) => {
     const handleUpdate = async () => {
         setLoading(true);
         try {
+            const token = await AsyncStorage.getItem('token'); // lấy token ở đây
+            if (!token) {
+                alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
+                setLoading(false);
+                return;
+            }
+
+            // tạo formData như trước
             const formData = new FormData();
             formData.append("phone", newPhone);
-
-            const genderValue = newGender === 'Nam' ? 'MALE' : newGender === 'Nữ' ? 'FEMALE' : 'OTHER';
-            formData.append("gender", genderValue);
             formData.append("home_town", newAddress);
             formData.append("date_of_birth", newBirthday);
             formData.append("student_id", "SV00001");
 
             if (newAvatar && !newAvatar.startsWith("http")) {
-                const fileName = newAvatar.split("/").pop();
-                const fileType = fileName.split(".").pop();
+                const filename = newAvatar.split('/').pop();
+                const match = /\.(\w+)$/.exec(filename);
+                const type = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
+                const fileUri = newAvatar.startsWith('file://') ? newAvatar : `file://${newAvatar}`;
                 formData.append("avatar", {
-                    uri: newAvatar,
-                    name: fileName,
-                    type: `image/${fileType}`,
+                    uri: fileUri,
+                    name: filename,
+                    type: type,
                 });
             }
 
-            const res = await axiosInstance.post(endpoints["updateProfile"], formData, {
-                headers: { "Content-Type": "multipart/form-data" }
+            const res = await authApis(token).post(endpoints["updateProfile"], formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
             });
 
-            if (res.status === 200) {
-                Alert.alert("Thông báo", "Cập nhật thông tin thành công");
-                navigation.goBack();
-            } else {
-                alert("Cập nhật thất bại. Vui lòng thử lại.");
+            console.log("Cập nhật thành công:", res.data);
+
+            if (res.data?.user?.avatar) {
+                setNewAvatar(res.data.user.avatar);
             }
-        } catch (error) {
-            console.error("Lỗi cập nhật:", error);
-            alert("Đã xảy ra lỗi trong quá trình cập nhật.");
+
+            Alert.alert("Thông báo", "Cập nhật thành công!");
+            navigation.goBack();
+
+        } catch (e) {
+            console.log("Lỗi cập nhật:", e);
+            if (e.response) {
+                console.log("Response data:", e.response.data);
+                alert(`Lỗi: ${e.response.data.error || 'Có lỗi xảy ra khi cập nhật'}`);
+            } else {
+                alert(`Lỗi: ${e.message}`);
+            }
         } finally {
             setLoading(false);
         }
     };
-
 
     const handleCancel = () => {
         navigation.goBack();
@@ -156,27 +178,3 @@ const ChangePersonal = ({ route, navigation }) => {
 };
 
 export default ChangePersonal;
-
-{/* <Text style={StylePersonal.label}>Giới tính</Text>
-                <View style={StylePersonal.genderContainer}>
-                    <TouchableOpacity
-                        onPress={() => setNewGender('Nam')}
-                        style={StylePersonal.radioButton}>
-                        <Ionicons
-                            name={newGender === 'Nam' ? 'radio-button-on' : 'radio-button-off'}
-                            size={24}
-                            color={newGender === 'Nam' ? '#1E319D' : '#ccc'}
-                        />
-                        <Text style={StylePersonal.radioText}>Nam</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => setNewGender('Nữ')}
-                        style={StylePersonal.radioButton}>
-                        <Ionicons
-                            name={newGender === 'Nữ' ? 'radio-button-on' : 'radio-button-off'}
-                            size={24}
-                            color={newGender === 'Nữ' ? '#1E319D' : '#ccc'}
-                        />
-                        <Text style={StylePersonal.radioText}>Nữ</Text>
-                    </TouchableOpacity>
-                </View> */}

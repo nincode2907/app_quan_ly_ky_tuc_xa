@@ -18,7 +18,7 @@ export default StyleSheet.create({
     },
     slogan: {
         color: "#E3C7A5",
-        fontSize: 12,
+        fontSize: 13,
     },
     searchBar: {
         backgroundColor: "#fff",
@@ -57,7 +57,7 @@ export default StyleSheet.create({
     title: {
         color: "#E3C7A5",
         fontWeight: "bold",
-        fontSize: 16,
+        fontSize: 14,
         // borderBottomColor: '#E3C7A5',
     },
     notifications: {
@@ -77,12 +77,12 @@ export default StyleSheet.create({
         fontSize: 20,
     },
     notificationText: {
-        fontSize: 15,
+        fontSize: 13,
         flex: 1,
         flexWrap: "wrap",
     },
     notificationTime: {
-        fontSize: 12,
+        fontSize: 10,
         color: "#ABABAB",
         marginTop: 5,
     },

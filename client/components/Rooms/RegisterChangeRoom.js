@@ -101,8 +101,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     title: {
-        fontSize: 20,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: 'bold',
         marginBottom: 15,
         color: '#222',
         textAlign: 'center',
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
         backgroundColor: '#fff',
         marginBottom: 20,
-        fontSize: 16,
+        fontSize: 14,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: 15,
         fontWeight: '700',
     },
 });

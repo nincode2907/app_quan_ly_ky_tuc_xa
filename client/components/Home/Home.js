@@ -31,7 +31,6 @@ const Home = () => {
             const res = await axiosInstance.get(`${endpoints.notifications}?page=${page}`);
             if (res.data && res.data.results) {
                 const newNotifications = res.data.results
-                    .reverse()
                     .map(item => ({
                         id: item.id,
                         title: item.notification.title,

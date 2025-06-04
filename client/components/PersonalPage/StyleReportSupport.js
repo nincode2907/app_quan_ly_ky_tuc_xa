@@ -29,6 +29,11 @@ export default StyleSheet.create({
         marginBottom: 8,
         borderRadius: 5,
         gap: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
 
     },
 
@@ -36,20 +41,22 @@ export default StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        width: 80
+        width: 85
     },
 
     reportType: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#1E319D'
     },
 
     reportText: {
         fontSize: 14,
+        fontWeight: 'medium'
     },
 
     reportTime: {
-        color: '#ABABAB'
+        color: '#ABABAB',
+        fontSize: 12,
     },
 
     chip: {

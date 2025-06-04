@@ -92,9 +92,8 @@ const RoomRegister = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
     container: {
-        marginTop: 250,
+        marginTop: 220,
         padding: 20,
-        backgroundColor: '#F8F8F8',
     },
     scrollContainer: {
         flexGrow: 1,

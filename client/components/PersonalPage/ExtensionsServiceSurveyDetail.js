@@ -119,10 +119,10 @@ const ExtensionsServiceSurveyDetail = () => {
             <View style={[styles.loadingContainer, { padding: 20 }]}>
                 <MaterialCommunityIcons
                     name="check"
-                    size={50}
+                    size={60}
                     color="#ABABAB"
                 />
-                <Text style={{ fontSize: 18, fontWeight: "bold", color: "#ABABAB" }}>
+                <Text style={{ fontSize: 16, fontWeight: "bold", color: "#ABABAB" }}>
                     Bạn đã hoàn thành khảo sát này
                 </Text>
             </View>
@@ -244,6 +244,7 @@ const styles = StyleSheet.create({
     },
     loadingContainer: {
         alignItems: "center",
+        marginTop: 250,
     },
 });
 

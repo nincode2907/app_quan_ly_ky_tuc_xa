@@ -5,7 +5,7 @@ import { endpoints } from "./Apis";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000, 
+  timeout: 20000,
 });
 
 let isRefreshing = false;

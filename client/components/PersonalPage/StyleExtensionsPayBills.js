@@ -17,6 +17,7 @@ export default StyleSheet.create({
     },
     list: {
         marginTop: 10,
+        
     },
     billItem: {
         flexDirection: 'row',
@@ -25,6 +26,12 @@ export default StyleSheet.create({
         marginBottom: 8,
         borderRadius: 5,
         gap: 10,
+        backgroundColor: "#fff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
         
     },
 

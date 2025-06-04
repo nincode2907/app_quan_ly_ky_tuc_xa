@@ -87,7 +87,7 @@ const ReportSupport = () => {
                     <Text style={styles.reportType}>{item.report_type}
                     </Text>
                 </View>
-                <View style={{ flex: 1, marginLeft: 5, gap: 5 }}>
+                <View style={{ flex: 1,  gap: 5 }}>
                     <Text style={styles.reportText}>{item.title}</Text>
                     <Text style={styles.reportTime}>{formatDateTime(item.created_at)}</Text>
                 </View>

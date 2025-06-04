@@ -55,9 +55,13 @@ export default StyleSheet.create({
         overflow: 'hidden',
     },
     picker: {
-        height: 40,
+        height: 52,
         width: '100%',
     },
+    pickerItem: {
+        fontSize: 14,
+    },
+
     underlineInput: {
         borderBottomWidth: 1,
         borderBottomColor: '#ccc',

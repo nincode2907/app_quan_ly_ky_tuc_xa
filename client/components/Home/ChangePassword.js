@@ -6,6 +6,7 @@ import { TextInput, HelperText } from 'react-native-paper';
 import { endpoints } from "../../configs/Apis";
 import axiosInstance from "../../configs/AxiosInterceptor";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import OTPInput from '../User/OTPInput';
 import { API_KEY } from '@env';
 import styles from './StyleChangePassword';
 
@@ -283,14 +284,11 @@ const ChangePassword = () => {
                 <View style={styles.modalContainer}>
                     <Text style={styles.modalTitle}>Nhập mã OTP</Text>
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Mã OTP"
-                        keyboardType="numeric"
+                    <OTPInput
                         value={otp}
-                        onChangeText={setOtp}
-                        maxLength={6}
+                        onChange={setOtp}
                     />
+
                     {!!otpMsg && <HelperText type="error">{otpMsg}</HelperText>}
 
                     <View style={styles.otpInfoRow}>
@@ -322,6 +320,7 @@ const ChangePassword = () => {
                     </View>
                 </View>
             </Modal>
+
         </ScrollView>
     );
 };

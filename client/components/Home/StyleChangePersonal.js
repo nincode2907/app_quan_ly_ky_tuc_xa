@@ -40,6 +40,7 @@ export default StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         marginBottom: 8,
+        fontWeight: 'bold',
     },
     input: {
         height: 50,
@@ -49,7 +50,7 @@ export default StyleSheet.create({
         paddingLeft: 15,
         marginBottom: 15,
         backgroundColor: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         color: '#333',
     },
     genderContainer: {
@@ -83,7 +84,7 @@ export default StyleSheet.create({
     },
     cancelText: {
         color: '#000',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
     },
     updateButton: {
@@ -96,7 +97,7 @@ export default StyleSheet.create({
     },
     updateText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: 'bold',
     },
     disabledButton: {

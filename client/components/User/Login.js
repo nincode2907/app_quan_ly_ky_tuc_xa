@@ -72,7 +72,6 @@ const Login = () => {
                 grant_type: "password"
             };
 
-            // Login lấy token
             const res = await Apis.post(endpoints['login'], data, {
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -80,7 +79,6 @@ const Login = () => {
             const token = res.data.access_token;
             await AsyncStorage.setItem('token', token);
 
-            // API lấy thông tin user
             const userRes = await Apis.get(endpoints['user_me'], {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -173,21 +171,3 @@ const Login = () => {
 };
 
 export default Login;
-
-{/* <View style={Styles.googleLogin}>
-                    <Text style={Styles.googleLoginText}>hoặc đăng nhập với</Text>
-                    <TouchableOpacity style={Styles.googleButton}>
-                        <Image
-                            source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1744450866/gcggw9a3lkq6utrlisef.png" }}
-                            style={Styles.googleImg}
-                        />
-                        <Text>Google</Text>
-                    </TouchableOpacity>
-                </View> */}
-
-{/* <View style={Styles.signupContainer}>
-                    <Text style={Styles.signupPrompt}>Bạn chưa có tài khoản?</Text>
-                    <TouchableOpacity onPress={() => nav.navigate("register")}>
-                        <Text style={Styles.signupLink}> Đăng ký</Text>
-                    </TouchableOpacity>
-                </View> */}

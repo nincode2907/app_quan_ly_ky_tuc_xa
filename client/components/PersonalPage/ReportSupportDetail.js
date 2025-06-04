@@ -29,7 +29,6 @@ const ReportSupportDetail = () => {
         try {
             const res = await axiosInstance.get(endpoints['studentInfo']);
             const student = res.data;
-            // console.log("StudentInfo:", res.data);
 
             const info = {
                 name: student.full_name,
@@ -150,9 +149,9 @@ const ReportSupportDetail = () => {
                                 onValueChange={(value) => setSelectedIssue(value)}
                                 style={styles.picker}
                             >
-                                <Picker.Item label="─── Chọn dạng sự cố ───" value="" enabled={false} />
-                                <Picker.Item label="Yêu cầu sửa chữa" value="REPAIR" />
-                                <Picker.Item label="Báo cáo sự cố" value="ISSUE" />
+                                <Picker.Item label="─── Chọn dạng sự cố ───" value="" enabled={false} style={styles.pickerItem} />
+                                <Picker.Item label="Yêu cầu sửa chữa" value="REPAIR" style={styles.pickerItem} />
+                                <Picker.Item label="Báo cáo sự cố" value="ISSUE" style={styles.pickerItem} />
                             </Picker>
                         </View>
                     </View>

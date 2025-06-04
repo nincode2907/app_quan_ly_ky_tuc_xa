@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     circleIcon: {
         width: 40,
         height: 40,
-        borderRadius: 20,
+        borderRadius: 10,
         backgroundColor: "#e0e0e0",
         justifyContent: "center",
         alignItems: "center",
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
         width: 80,
     },
     status: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: "600",
     },
     contentContainer: {
@@ -168,13 +168,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: "bold",
         color: "#222",
         flexShrink: 1,
     },
     date: {
-        fontSize: 14,
+        fontSize: 13,
         color: "#666",
     },
 });

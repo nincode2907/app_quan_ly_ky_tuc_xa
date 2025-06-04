@@ -6,8 +6,9 @@ import {
 import Modal from 'react-native-modal';
 import { HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import API, { endpoints } from '../../configs/Apis';
+import { endpoints } from '../../configs/Apis';
 import axiosInstance from "../../configs/AxiosInterceptor";
+import OTPInput from '../User/OTPInput';
 import { API_KEY } from '@env';
 
 const OTP_TIMEOUT = 60;
@@ -16,12 +17,15 @@ const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
+
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [otp, setOtp] = useState('');
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
+
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
+
     const navigation = useNavigation();
 
     useEffect(() => {
@@ -32,6 +36,7 @@ const ForgotPassword = () => {
 
     const startTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
+        setTimer(OTP_TIMEOUT);
         timerRef.current = setInterval(() => {
             setTimer(prev => {
                 if (prev <= 1) {
@@ -43,7 +48,6 @@ const ForgotPassword = () => {
         }, 1000);
     };
 
-    // Kiểm tra email hợp lệ và phải là gmail
     const isValidEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const gmailRegex = /^[^\s@]+@gmail\.com$/i;
@@ -72,9 +76,8 @@ const ForgotPassword = () => {
                 headers: { 'x-api-key': API_KEY }
             });
 
-            setTimer(OTP_TIMEOUT);
-            startTimer();
             setIsModalVisible(true);
+            startTimer();
             Alert.alert('Thành công', 'Mã OTP đã được gửi đến email của bạn.');
         } catch (error) {
             if (error.response) {
@@ -160,19 +163,13 @@ const ForgotPassword = () => {
                     </Text>
                 </TouchableOpacity>
 
-                {/* OTP Modal */}
-                <Modal isVisible={isModalVisible}>
+                <Modal isVisible={isModalVisible} onBackdropPress={() => !otpLoading && setIsModalVisible(false)}>
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>Nhập mã OTP</Text>
 
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Mã OTP"
-                            keyboardType="numeric"
+                        <OTPInput
                             value={otp}
-                            onChangeText={setOtp}
-                            maxLength={6}
-                            autoFocus
+                            onChange={setOtp}
                         />
                         {!!otpMsg && <HelperText type="error">{otpMsg}</HelperText>}
 
@@ -180,7 +177,11 @@ const ForgotPassword = () => {
                             {timer > 0 ? (
                                 <Text>Vui lòng chờ {timer} giây để gửi lại OTP</Text>
                             ) : (
-                                <TouchableOpacity onPress={requestOtp}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        requestOtp();
+                                    }}
+                                >
                                     <Text style={styles.resendOtpText}>Gửi lại OTP</Text>
                                 </TouchableOpacity>
                             )}
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 24,
+        marginBottom: 25,
         textAlign: 'center',
     },
     input: {
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         color: '#fff',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: 'bold',
     },
     disabledButton: {
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     },
     otpInfoRow: {
         alignItems: 'center',
-        marginBottom: 10,
+        marginTop: 10,
     },
     resendOtpText: {
         color: '#1E319D',
@@ -270,7 +271,7 @@ const styles = StyleSheet.create({
     buttonRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 20,
+        marginTop: 16,
     },
     cancelButton: {
         paddingVertical: 12,

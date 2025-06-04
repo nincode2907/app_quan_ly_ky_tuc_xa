@@ -6,7 +6,6 @@ const LikedRoomsContext = createContext();
 export const LikedRoomsProvider = ({ children, token }) => {
     const [likedRooms, setLikedRooms] = useState({});
 
-    // Gọi API để lấy danh sách phòng đã like khi app khởi chạy
     useEffect(() => {
         const fetchFavorites = async () => {
             try {
@@ -23,7 +22,6 @@ export const LikedRoomsProvider = ({ children, token }) => {
         if (token) fetchFavorites();
     }, [token]);
 
-    // Gọi API toggle và cập nhật local context
     const toggleLike = async (room) => {
         try {
             const result = await toggleFavoriteRoom(room.id, token);

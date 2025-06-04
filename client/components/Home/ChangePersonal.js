@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { endpoints, authApis } from "../../configs/Apis";
+import { endpoints } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from "../../configs/AxiosInterceptor";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
     const {
-        phone = '', address = '', gender = '', birthday = '',
-        avatar = '', name = '', email = ''
+        phone = '', address = '', birthday = '',
+        avatar = '', name = '',
     } = route.params || {};
 
     const [newName, setNewName] = useState(name);
     const [newPhone, setNewPhone] = useState(phone);
     const [newAddress, setNewAddress] = useState(address);
-    const [newGender, setNewGender] = useState(gender);
     const [newBirthday, setNewBirthday] = useState(birthday);
     const [newAvatar, setNewAvatar] = useState(avatar);
     const [newAvatarBase64, setNewAvatarBase64] = useState(null);
@@ -34,8 +32,8 @@ const ChangePersonal = ({ route, navigation }) => {
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.1, // giảm chất lượng
-                base64: true, // thêm dòng này để lấy base64 trực tiếp
+                quality: 0.1, 
+                base64: true, 
             });
 
             if (!result.canceled) {
@@ -54,14 +52,7 @@ const ChangePersonal = ({ route, navigation }) => {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            const token = await AsyncStorage.getItem('token'); // lấy token ở đây
-            if (!token) {
-                alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
-                setLoading(false);
-                return;
-            }
 
-            // tạo formData như trước
             const formData = new FormData();
             formData.append("phone", newPhone);
             formData.append("home_town", newAddress);
@@ -72,15 +63,25 @@ const ChangePersonal = ({ route, navigation }) => {
                 const filename = newAvatar.split('/').pop();
                 const match = /\.(\w+)$/.exec(filename);
                 const type = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
-                const fileUri = newAvatar.startsWith('file://') ? newAvatar : `file://${newAvatar}`;
+                const fileUri = newAvatar.startsWith('file://') ? newAvatar : newAvatar;
+
+                console.log('>> Avatar being sent:', {
+                    uri: fileUri,
+                    name: filename,
+                    type: type
+                });
+
                 formData.append("avatar", {
                     uri: fileUri,
                     name: filename,
                     type: type,
                 });
+                for (let pair of formData.entries()) {
+                    console.log(`${pair[0]}:`, pair[1]);
+                }
             }
 
-            const res = await authApis(token).post(endpoints["updateProfile"], formData, {
+            const res = await axiosInstance.post(endpoints["updateProfile"], formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },

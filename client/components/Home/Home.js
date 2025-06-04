@@ -20,7 +20,7 @@ const Home = () => {
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const { unreadMessages, setUnreadMessages } = useWebSocket(); // Theo dõi tin nhắn chưa đọc
+    const { unreadMessages, setUnreadMessages } = useWebSocket();
     const wsRef = useRef(null);
 
     const loadNotifications = useCallback(async () => {
@@ -119,7 +119,6 @@ const Home = () => {
                 try {
                     const data = JSON.parse(e.data);
                     if (data.message) {
-                        // Tăng số lượng tin nhắn chưa đọc khi nhận tin nhắn mới
                         setUnreadMessages(prev => prev + 1);
                     }
                 } catch (error) {
@@ -129,7 +128,6 @@ const Home = () => {
 
             socket.onclose = () => {
                 console.log('WebSocket closed');
-                // Có thể thêm logic reconnect nếu cần
             };
 
             socket.onerror = (error) => {
@@ -167,7 +165,7 @@ const Home = () => {
 
                     <TouchableOpacity onPress={() => {
                         nav.navigate("homechat");
-                        setUnreadMessages(0); // Đặt lại số tin nhắn chưa đọc khi vào chat
+                        setUnreadMessages(0);
                     }}>
                         <View style={{ position: 'relative' }}>
                             <Image

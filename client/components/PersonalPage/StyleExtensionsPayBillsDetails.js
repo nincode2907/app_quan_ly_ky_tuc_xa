@@ -177,8 +177,8 @@ export default StyleSheet.create({
         bottom: 20,
         left: 20,
         right: 20,
-        elevation: 5, // Android shadow
-        shadowColor: '#000', // iOS shadow
+        elevation: 5, 
+        shadowColor: '#000', 
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 4,

@@ -60,7 +60,6 @@ const ExtensionsFavouriteRoom = () => {
             }
 
             const response = await toggleFavoriteRoom(parseInt(room.id));
-            // Cập nhật trực tiếp trong state
             setLikedRooms(prevRooms =>
                 response?.is_favorite
                     ? [...prevRooms, { ...room, is_favorite: true }]

@@ -12,22 +12,23 @@ export default StyleSheet.create({
     },
 
     input: {
+        fontSize: 15,
         borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 8,
         marginBottom: 15,
-        backgroundColor: '#DEDEDE'
+        backgroundColor: '#DEDEDE',
+        color: '#DEDEDE',
     },
 
     buttonRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 20,
-
     },
 
     cancelButton: {
-        backgroundColor: '#ccc',
+        backgroundColor: '#DEDEDE',
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,
@@ -65,6 +66,8 @@ export default StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 10,
+        textAlign: 'center',
+        marginBottom: 25,
     },
 
     otpInfoRow: {

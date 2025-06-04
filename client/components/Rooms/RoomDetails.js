@@ -78,13 +78,6 @@ const RoomDetails = () => {
                         <Text style={StyleRoomDetails.roomName}>
                             Phòng {room.number} - Tòa {room.building?.name} - Loại phòng {room.room_type.name}
                         </Text>
-                        {/* <TouchableOpacity onPress={handleToggleFavorite}>
-                            <AntDesign
-                                name={room.is_favorite ? 'heart' : 'hearto'}
-                                size={24}
-                                color={room.is_favorite ? 'red' : '#B0B0B0'}
-                            />
-                        </TouchableOpacity> */}
                     </View>
 
                     <Text style={StyleRoomDetails.roomPrice}>

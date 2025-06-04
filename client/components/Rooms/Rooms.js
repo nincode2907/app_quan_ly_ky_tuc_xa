@@ -73,10 +73,6 @@ const Rooms = () => {
         await loadRooms();
     };
 
-    // const onPressSearch = () => {
-    //     setFilteredRooms(filterRooms(rooms, searchText));
-    // };
-
     useFocusEffect(
         useCallback(() => {
             return () => {
@@ -96,7 +92,6 @@ const Rooms = () => {
         } catch (err) {
             console.error("Lỗi toggle yêu thích:", err);
             Alert.alert("Lỗi", err.message || "Không thể cập nhật trạng thái yêu thích.");
-            // rollback
             setFilteredRooms(prev => prev.map(r => r.id === roomId.toString() ? { ...r, is_favorite: !r.is_favorite } : r));
         }
     };
@@ -135,7 +130,6 @@ const Rooms = () => {
                     value={searchText}
                     onChangeText={setSearchText}
                     returnKeyType="search"
-                // onSubmitEditing={onPressSearch}
                 />
                 <Ionicons style={styles.search} name="search" size={20} color="#B0B0B0" />
             </View>

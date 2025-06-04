@@ -6,6 +6,7 @@ import axiosInstance from "../../configs/AxiosInterceptor";
 import { endpoints } from "../../configs/Apis";
 
 
+
 const HomeQR = () => {
     const navigation = useNavigation();
     const [qrCode, setQrCode] = useState('');
@@ -13,22 +14,25 @@ const HomeQR = () => {
 
     const handleSubmit = async () => {
         if (!qrCode.trim()) {
-            Alert.alert('Lỗi', 'Vui lòng nhập mã QR hợp lệ');
+            Alert.alert('Lỗi', 'Vui lòng nhập mã QR');
             return;
         }
 
         setLoading(true);
         try {
 
-            const res = await axiosInstance.post(endpoints.checkinoutLogs, { qr_token: qrCode.trim() });
+            const res = await axiosInstance.post(endpoints.checkinoutLogs, {
+                qr_token: qrCode.trim()
+            });
 
-            if (res.data.success) {
+            if (res.data.status === 'success') {
                 Alert.alert('Thành công', res.data.message || 'Checkin/Checkout thành công!');
                 setQrCode('');
+                navigation.goBack();
             } else {
                 Alert.alert('Thất bại', res.data.message || 'Không thể checkin/checkout.');
             }
-            
+
         } catch (error) {
             console.log('Lỗi khi gửi checkin/checkout:', error);
             Alert.alert('Lỗi', error.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.');

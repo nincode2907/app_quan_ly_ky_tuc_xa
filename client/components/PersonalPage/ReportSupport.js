@@ -21,7 +21,6 @@ const ReportSupport = () => {
             setLoading(true);
             const res = await axiosInstance.get(endpoints.issueReport);
             setData(res.data.results);
-            // console.log("Response data:", res.data);
         } catch (err) {
             console.error("Lỗi khi tải danh sách sự cố:", err);
         } finally {
@@ -62,7 +61,6 @@ const ReportSupport = () => {
     const STATUS = {
         pending: 'PENDING',
         approved: 'RESOLVED',
-        // rejected: 'REJECTED',
     };
     const filteredData = data.filter(item => item.status === STATUS[selectedStatus]);
 
@@ -87,7 +85,7 @@ const ReportSupport = () => {
                     <Text style={styles.reportType}>{item.report_type}
                     </Text>
                 </View>
-                <View style={{ flex: 1, marginLeft: 5, gap: 5 }}>
+                <View style={{ flex: 1,  gap: 5 }}>
                     <Text style={styles.reportText}>{item.title}</Text>
                     <Text style={styles.reportTime}>{formatDateTime(item.created_at)}</Text>
                 </View>
@@ -115,14 +113,6 @@ const ReportSupport = () => {
                 >
                     Đã xử lý
                 </Chip>
-                {/* <Chip
-                    icon="close-circle-outline"
-                    selected={selectedStatus === 'rejected'}
-                    onPress={() => setSelectedStatus('rejected')}
-                    style={[styles.chip, selectedStatus === 'rejected' && styles.chipSelected]}
-                >
-                    Đã từ chối
-                </Chip> */}
             </View>
 
             {loading ? (

@@ -86,7 +86,7 @@ const StackNavigator = () => {
                 source={{ uri: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1741062641/gyjdx9ztcqt6arxyb1al.png' }}
                 style={{ width: 30, height: 30, marginRight: 8 }}
               />
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
                 Quên mật khẩu
               </Text>
             </View>
@@ -111,7 +111,7 @@ const StackNavigator = () => {
                 source={{ uri: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1741062641/gyjdx9ztcqt6arxyb1al.png' }}
                 style={{ width: 30, height: 30, marginRight: 8 }}
               />
-              <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
                 Cú Mèo Thám Tử
               </Text>
             </View>
@@ -131,7 +131,7 @@ const StackNavigator = () => {
                 source={{ uri: 'https://res.cloudinary.com/dywyrpfw7/image/upload/v1741062641/gyjdx9ztcqt6arxyb1al.png' }}
                 style={{ width: 30, height: 30, marginRight: 8 }}
               />
-              <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
                 Cú Mèo Thông Báo
               </Text>
             </View>
@@ -144,9 +144,9 @@ const StackNavigator = () => {
         component={ChangePassword}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Cập nhật mật khẩu
             </Text>
           ),
@@ -160,7 +160,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#E3C7A5",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 20, fontWeight: 'bold' }}>
+            <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
               Cập nhật thông tin cá nhân
             </Text>
           ),
@@ -176,7 +176,7 @@ const StackNavigator = () => {
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
           headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#fff', fontSize: 17, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Thông tin chi tiết phòng
             </Text>
           ),
@@ -271,9 +271,9 @@ const StackNavigator = () => {
         component={ExtensionsServiceSurvey}
         options={{
           headerStyle: { backgroundColor: "#1E319D", height: 100 },
-          headerTintColor: "#E3C7A5",
+          headerTintColor: "#fff",
           headerTitle: () => (
-            <Text style={{ color: '#E3C7A5', fontSize: 18, fontWeight: 'bold' }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
               Khảo sát dịch vụ
             </Text>
           ),

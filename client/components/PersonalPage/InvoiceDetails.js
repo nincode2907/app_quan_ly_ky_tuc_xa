@@ -9,7 +9,7 @@ const InvoiceDetails = () => {
     const nav = useNavigation();
     const { likedRooms, toggleLike } = useLikedRooms();
 
-    const likedRoomsArray = Object.values(likedRooms); // mỗi phần tử là một room object
+    const likedRoomsArray = Object.values(likedRooms); 
 
     const renderItem = ({ item }) => (
         <TouchableOpacity onPress={() => nav.navigate('roomDetails', { room: item })}>

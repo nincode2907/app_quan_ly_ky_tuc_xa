@@ -13,6 +13,7 @@ export const endpoints = {
     'studentInfo': '/api/students/me/',
     'updateProfile': '/api/students/update-profile/',
     'changePassword': '/api/user/change_password/',
+    'checkinoutLogs': '/api/checkinout-logs/scan/',
     'notifications': '/api/notifications/',
     'markRead': "/api/notifications/mark-read/",
 

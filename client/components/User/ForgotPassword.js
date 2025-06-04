@@ -7,12 +7,14 @@ import Modal from 'react-native-modal';
 import { HelperText } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import API, { endpoints } from '../../configs/Apis';
+import axiosInstance from "../../configs/AxiosInterceptor";
 import { API_KEY } from '@env';
 
 const OTP_TIMEOUT = 60;
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [otp, setOtp] = useState('');
@@ -41,21 +43,32 @@ const ForgotPassword = () => {
         }, 1000);
     };
 
-    const isValidEmail = (email) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    // Kiểm tra email hợp lệ và phải là gmail
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const gmailRegex = /^[^\s@]+@gmail\.com$/i;
+        return emailRegex.test(email) && gmailRegex.test(email);
+    };
 
     const requestOtp = async () => {
         const trimmedEmail = email.trim();
-        if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
-            Alert.alert('Lỗi', 'Vui lòng nhập email hợp lệ.');
+
+        if (!trimmedEmail) {
+            setEmailError('Vui lòng nhập email.');
             return;
         }
 
+        if (!isValidEmail(trimmedEmail)) {
+            setEmailError('Vui lòng nhập email Gmail hợp lệ (ví dụ: abc@gmail.com).');
+            return;
+        }
+
+        setEmailError('');
         Keyboard.dismiss();
         setLoading(true);
 
         try {
-            await API.post(endpoints.requestOtp, { email: trimmedEmail }, {
+            await axiosInstance.post(endpoints.requestOtp, { email: trimmedEmail }, {
                 headers: { 'x-api-key': API_KEY }
             });
 
@@ -64,7 +77,15 @@ const ForgotPassword = () => {
             setIsModalVisible(true);
             Alert.alert('Thành công', 'Mã OTP đã được gửi đến email của bạn.');
         } catch (error) {
-            console.error(error);
+            if (error.response) {
+                console.error('Response data:', error.response.data);
+                console.error('Response status:', error.response.status);
+                console.error('Response headers:', error.response.headers);
+            } else if (error.request) {
+                console.error('Request error:', error.request);
+            } else {
+                console.error('Error message:', error.message);
+            }
             Alert.alert('Lỗi', 'Không thể gửi mã OTP. Vui lòng thử lại.');
         } finally {
             setLoading(false);
@@ -81,7 +102,7 @@ const ForgotPassword = () => {
         setOtpLoading(true);
 
         try {
-            const res = await API.post(endpoints.resetPassword, {
+            const res = await axiosInstance.post(endpoints.resetPassword, {
                 otp,
                 email: email.trim()
             });
@@ -119,11 +140,15 @@ const ForgotPassword = () => {
                 <TextInput
                     placeholder="Nhập email"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={text => {
+                        setEmail(text);
+                        if (emailError) setEmailError('');
+                    }}
                     style={styles.input}
                     keyboardType="email-address"
                     autoCapitalize="none"
                 />
+                {!!emailError && <HelperText type="error">{emailError}</HelperText>}
 
                 <TouchableOpacity
                     onPress={requestOtp}
@@ -188,12 +213,11 @@ const ForgotPassword = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
+        marginTop: 220,
         paddingHorizontal: 24,
-        backgroundColor: '#f9f9f9',
     },
     title: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 24,
@@ -207,13 +231,14 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         fontSize: 16,
         backgroundColor: '#fff',
-        marginBottom: 20,
+        marginBottom: 8,
     },
     button: {
         backgroundColor: '#1E319D',
         paddingVertical: 14,
         borderRadius: 5,
         alignItems: 'center',
+        marginTop: 10,
     },
     buttonText: {
         color: '#fff',

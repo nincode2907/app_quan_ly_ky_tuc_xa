@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { endpoints } from "../../configs/Apis";
+import { endpoints, authApis } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import axiosInstance from "../../configs/AxiosInterceptor";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
@@ -13,7 +13,6 @@ const ChangePersonal = ({ route, navigation }) => {
     } = route.params || {};
 
     const [newName, setNewName] = useState(name);
-    const [newEmail, setNewEmail] = useState(email);
     const [newPhone, setNewPhone] = useState(phone);
     const [newAddress, setNewAddress] = useState(address);
     const [newGender, setNewGender] = useState(gender);
@@ -54,24 +53,26 @@ const ChangePersonal = ({ route, navigation }) => {
 
     const handleUpdate = async () => {
         setLoading(true);
-
         try {
+            const token = await AsyncStorage.getItem('token'); // lấy token ở đây
+            if (!token) {
+                alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
+                setLoading(false);
+                return;
+            }
+
+            // tạo formData như trước
             const formData = new FormData();
             formData.append("phone", newPhone);
-            formData.append("gender", newGender === 'Nam' ? 'MALE' : 'FEMALE');
             formData.append("home_town", newAddress);
             formData.append("date_of_birth", newBirthday);
             formData.append("student_id", "SV00001");
 
             if (newAvatar && !newAvatar.startsWith("http")) {
                 const filename = newAvatar.split('/').pop();
-
                 const match = /\.(\w+)$/.exec(filename);
                 const type = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
-
-                // Đảm bảo uri có tiền tố file://
                 const fileUri = newAvatar.startsWith('file://') ? newAvatar : `file://${newAvatar}`;
-
                 formData.append("avatar", {
                     uri: fileUri,
                     name: filename,
@@ -79,24 +80,29 @@ const ChangePersonal = ({ route, navigation }) => {
                 });
             }
 
-
-            // Log FormData để kiểm tra
-            for (let [key, value] of formData._parts) {
-                console.log(key, value);
-            }
-
-            const res = await axiosInstance.post(endpoints["updateProfile"], formData, {
-
+            const res = await authApis(token).post(endpoints["updateProfile"], formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
             });
 
             console.log("Cập nhật thành công:", res.data);
-            alert("Cập nhật thành công!");
+
+            if (res.data?.user?.avatar) {
+                setNewAvatar(res.data.user.avatar);
+            }
+
+            Alert.alert("Thông báo", "Cập nhật thành công!");
             navigation.goBack();
 
         } catch (e) {
             console.log("Lỗi cập nhật:", e);
-            console.log("Response data:", e.response?.data);
-            alert(`Lỗi: ${e.response?.data?.error || e.message}`);
+            if (e.response) {
+                console.log("Response data:", e.response.data);
+                alert(`Lỗi: ${e.response.data.error || 'Có lỗi xảy ra khi cập nhật'}`);
+            } else {
+                alert(`Lỗi: ${e.message}`);
+            }
         } finally {
             setLoading(false);
         }

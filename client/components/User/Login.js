@@ -104,7 +104,7 @@ const Login = () => {
     };
 
     return (
-        <ScrollView>
+        <ScrollView ontentContainerStyle={{ flexGrow: 1 }}>
             <View style={Styles.container}>
                 <View style={Styles.logoContainer}>
                     <Image

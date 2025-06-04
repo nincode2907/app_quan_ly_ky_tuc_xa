@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from decouple import config
+import openai
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -21,7 +22,7 @@ DEBUG = config('DEBUG_MODE', default=False, cast=bool)
 SECRET_KEY = config('SECRET_KEY', cast=str)
 ALLOWED_HOSTS = ['*']
 MY_DOMAIN = "www.pythonanywhere.com"
-# MY_DOMAIN = "9ff0-2402-800-63a7-95fc-a84b-2c0f-5828-55a1.ngrok-free.app"
+# MY_DOMAIN = "8c5f-2402-800-63a7-95fc-71db-2a62-99f8-8dc2.ngrok-free.app"
 
 AUTH_USER_MODEL = 'core.User'
 
@@ -35,18 +36,8 @@ cloudinary.config(
     secure=True
 )
 
-# Configuration
-cloudinary.config(
-    cloud_name = "dxxwcby8l",
-    api_key = "448651448423589",
-    api_secret = "ftGud0r1TTqp0CGp5tjwNmkAm-A", # Click 'View API Keys' above to copy your API secret
-    secure=True
-)
-
-
-# Application definition
-
 INSTALLED_APPS = [
+    'daphne',
     'jet.dashboard',
     'jet',
     'django.contrib.admin',
@@ -103,10 +94,7 @@ ASGI_APPLICATION = 'app.asgi.application'
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],  # Redis server
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
 
@@ -190,6 +178,8 @@ JET_APP_INDEX_DASHBOARD = 'jet.dashboard.dashboard.DefaultAppIndexDashboard'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+OPENAI_API_KEY = config('OPENAI_API_KEY')
 
 CKEDITOR_UPLOAD_PATH = "uploads/"
 CKEDITOR_IMAGE_BACKEND = "pillow"

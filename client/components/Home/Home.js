@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import Styles from './Style';
 import { useNavigation } from "@react-navigation/native";
@@ -6,18 +6,22 @@ import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } fr
 import { endpoints } from "../../configs/Apis";
 import axiosInstance from "../../configs/AxiosInterceptor";
 import Icon from 'react-native-vector-icons/FontAwesome';
+import { useWebSocket } from '../../contexts/WebSocketContext';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BASE_URL } from '@env';
+
 
 
 const Home = () => {
     const nav = useNavigation();
     const route = useRoute();
     const [avatar, setAvatar] = useState("https://res.cloudinary.com/dywyrpfw7/image/upload/v1744530660/a22aahwkjiwomfmvvmaj.png");
-
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-
+    const { unreadMessages, setUnreadMessages } = useWebSocket(); // Theo dõi tin nhắn chưa đọc
+    const wsRef = useRef(null);
 
     const loadNotifications = useCallback(async () => {
         if (loading || !hasMore) return;
@@ -25,8 +29,6 @@ const Home = () => {
 
         try {
             const res = await axiosInstance.get(`${endpoints.notifications}?page=${page}`);
-            // console.log("Response data:", res.data);
-
             if (res.data && res.data.results) {
                 const newNotifications = res.data.results
                     .reverse()
@@ -54,55 +56,90 @@ const Home = () => {
 
     useEffect(() => {
         loadNotifications();
+        initWebSocket(); 
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
     }, [loadNotifications]);
 
     useFocusEffect(
         useCallback(() => {
             if (route.params?.newAvatar) {
                 setAvatar(route.params.newAvatar);
-                // Xóa param sau khi lấy để tránh set lại nhiều lần
                 nav.setParams({ newAvatar: undefined });
             }
         }, [route.params?.newAvatar])
     );
 
-    // Hàm xử lý cuộn để tải thêm thông báo
     const handleScroll = ({ nativeEvent }) => {
         const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
         const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
         if (isCloseToBottom && hasMore && !loading) {
-            loadNotifications(); // Gọi hàm tải thêm khi cuộn gần cuối
+            loadNotifications();
         }
     };
 
-
     const handlePress = async (notificationId) => {
         markNotificationRead(notificationId);
-
-        // Cập nhật UI nhanh
-        setNotifications((prev) =>
-            prev.map((n) =>
-                n.id === notificationId ? { ...n, is_read: true } : n
-            )
+        setNotifications(prev =>
+            prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
         );
-
         nav.navigate("homenotification", { notificationId });
     };
-
 
     const markNotificationRead = async (notificationId) => {
         try {
             await axiosInstance.post(endpoints.markRead, { notification_id: notificationId });
         } catch (err) {
-            // Nếu backend lỗi, rollback UI
-            setNotifications((prev) =>
-                prev.map((n) =>
-                    n.id === notificationId ? { ...n, is_read: false } : n
-                )
+            setNotifications(prev =>
+                prev.map(n => n.id === notificationId ? { ...n, is_read: false } : n)
             );
             console.error(err);
         }
     };
+
+    const initWebSocket = useCallback(async () => {
+        try {
+            const accessToken = await AsyncStorage.getItem('token');
+            if (!accessToken) return;
+
+            const protocol = BASE_URL.startsWith('https') ? 'wss' : 'ws';
+            const host = BASE_URL.replace(/https?:\/\//, '');
+            const wsUrl = `${protocol}://${host}/ws/chat/?token=${accessToken}`;
+
+            const socket = new WebSocket(wsUrl);
+            wsRef.current = socket;
+
+            socket.onopen = () => {
+                console.log('WebSocket connected');
+            };
+
+            socket.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.message) {
+                        // Tăng số lượng tin nhắn chưa đọc khi nhận tin nhắn mới
+                        setUnreadMessages(prev => prev + 1);
+                    }
+                } catch (error) {
+                    console.error('Error processing WebSocket message:', error);
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('WebSocket closed');
+                // Có thể thêm logic reconnect nếu cần
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        } catch (error) {
+            console.error('Error initializing WebSocket:', error);
+        }
+    }, []);
 
     return (
         <View style={Styles.container}>
@@ -129,11 +166,27 @@ const Home = () => {
                         />
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => nav.navigate("homechat")}>
-                        <Image
-                            source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1744536313/h8ur4we2qjw5fss9s4la.png" }}
-                            style={Styles.imgIcon}
-                        />
+                    <TouchableOpacity onPress={() => {
+                        nav.navigate("homechat");
+                        setUnreadMessages(0); // Đặt lại số tin nhắn chưa đọc khi vào chat
+                    }}>
+                        <View style={{ position: 'relative' }}>
+                            <Image
+                                source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1744536313/h8ur4we2qjw5fss9s4la.png" }}
+                                style={Styles.imgIcon}
+                            />
+                            {unreadMessages > 0 && (
+                                <View style={{
+                                    position: 'absolute',
+                                    top: -5,
+                                    right: -5,
+                                    backgroundColor: 'red',
+                                    borderRadius: 10,
+                                    width: 10,
+                                    height: 10,
+                                }} />
+                            )}
+                        </View>
                     </TouchableOpacity>
                 </View>
             </View>

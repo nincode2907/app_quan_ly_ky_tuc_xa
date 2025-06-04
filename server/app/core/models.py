@@ -556,26 +556,6 @@ class SurveyResponse(models.Model):
     def __str__(self):
         return f"{self.student.full_name} - {self.question.content}"
     
-class Message(models.Model):
-    STATUS_CHOICES = (
-        ("PENDING_AI", "Đang chờ AI"),
-        ("PENDING_ADMIN", "Đang chờ admin"),
-        ("RESOLVED", "Đã giải quyết"),
-    )
-    
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
-    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="received_messages", null=True, blank=True)
-    content = models.TextField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING_AI")
-    timestamp = models.DateTimeField(auto_now_add=True)
-    is_from_admin = models.BooleanField(default=False)
-    
-    class Meta:
-        ordering = ['timestamp']
-        
-    def __str__(self):
-        return f"Message from {self.sender.email} at {self.timestamp}"
-    
 class FavoriteRoom(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='favorite_rooms')
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='favorited_by')
@@ -588,3 +568,38 @@ class FavoriteRoom(models.Model):
     def __str__(self):
         return f"{self.student.full_name} - {self.room.number} ({self.room.building.name})"
     
+class SystemContext(models.Model):
+    title = models.CharField(max_length=100)
+    content = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+    
+class ConversationState(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='conversation_state')
+    is_admin_handling = models.BooleanField(default=False)  # Nếu True thì admin sẽ trả lời
+    last_message_at = models.DateTimeField(null=True, blank=True)  # Thời gian tin nhắn cuối
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Conversation state for {self.user.email}"
+
+class Message(models.Model):
+    conversation_state = models.ForeignKey(ConversationState, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages', null=True)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_from_ai = models.BooleanField(default=False)
+    is_pending_admin = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        if self.sender:
+            return f"Message from {self.sender.email} at {self.created_at}"
+        return f"Message from AI at {self.created_at}"
+

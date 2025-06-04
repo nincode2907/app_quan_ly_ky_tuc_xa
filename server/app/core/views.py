@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ValidationError
-from .models import FavoriteRoom, Survey,CheckInOutLog,QRCode, SurveyResponse,SurveyQuestion, IssueReport, Notification, SupportRequest, User, Student, Area, Building, RoomType, Room, Message, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
+from .models import Message, ConversationState, SystemContext, FavoriteRoom, Survey,CheckInOutLog,QRCode, SurveyResponse,SurveyQuestion, IssueReport, Notification, SupportRequest, User, Student, Area, Building, RoomType, Room, Contract, Violation, Bill, RoomRequest, UserNotification, PaymentMethod, PaymentTransaction
 from core import serializers
 from .perms import IsAdminOrSelf, IsAdminCustom
 from .services.create_otp import OTPService
@@ -26,6 +26,10 @@ from drf_yasg.utils import swagger_auto_schema
 from django.db import transaction
 from drf_yasg import openapi
 from cloudinary.uploader import upload
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from oauth2_provider.contrib.rest_framework import OAuth2Authentication
+# import openai
 
 # Create your views here.
     
@@ -690,7 +694,205 @@ class CheckInOutLogViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-         
+    
+class MessageViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.MessageSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+
+    def get_queryset(self):
+        user = self.request.user
+        conversation_state_id = self.request.query_params.get('conversation_state', None)
+
+        if user.is_admin:
+            if conversation_state_id:
+                try:
+                    conversation_state = ConversationState.objects.get(id=conversation_state_id)
+                    messages = Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')
+                    print(f"Admin fetched {messages.count()} messages for conversation {conversation_state_id}")
+                    return messages
+                except ConversationState.DoesNotExist:
+                    print(f"Conversation {conversation_state_id} not found for admin")
+                    return Message.objects.none()
+            print("No conversation_state_id provided for admin")
+            return Message.objects.none()
+
+        try:
+            conversation_state = ConversationState.objects.filter(user=user).first()
+            if not conversation_state:
+                print(f"No conversation state found for user {user}")
+                return Message.objects.none()
+            messages = Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')
+            print(f"User {user} fetched {messages.count()} messages")
+            return messages
+        except Exception as e:
+            print(f"Error fetching messages for user {user}: {e}")
+            return Message.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        conversation_state, created = ConversationState.objects.get_or_create(user=user)
+        conversation_state.last_message_at = timezone.now()
+        conversation_state.save()
+
+        message = serializer.save(
+            conversation_state=conversation_state,
+            sender=user
+        )
+        
+        print(f"Message created by {user.username}: {message.content}")
+
+        # Gửi tin nhắn qua WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{user.id}",
+            {
+                "type": "chat_message",
+                "message": serializers.MessageSerializer(message).data
+            }
+        )
+        async_to_sync(channel_layer.group_send)(
+            'chat_admin',
+            {
+                "type": "chat_message",
+                "message": serializers.MessageSerializer(message).data
+            }
+        )
+
+        # Xử lý AI trả lời
+        self.handle_ai_response(message, conversation_state)
+
+    def handle_ai_response(self, message, conversation_state):
+        recent_messages = Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')[:10]
+        system_contexts = SystemContext.objects.filter(is_active=True)
+        if system_contexts.exists():
+            context_lines = [f"- {ctx.content}" for ctx in system_contexts]
+            context = f"""
+                Đây là các ngữ cảnh, quy định, nội quy của ký túc xá:
+                {chr(10).join(context_lines)}
+
+                Bạn là trợ lý AI của ký túc xá. Hãy trả lời một cách lịch sự và chuyên nghiệp.
+                Nếu bạn không tìm thấy thông tin trong này, hãy trả lời: "Xin vui lòng chờ quản trị viên phản hồi."
+            """
+        else:
+            context = """
+                Bạn là trợ lý AI của ký túc xá. Hãy trả lời một cách lịch sự và chuyên nghiệp.
+                Nếu bạn không tìm thấy thông tin, hãy trả lời: "Xin vui lòng chờ quản trị viên phản hồi."
+            """
+
+        messages_for_ai = [{"role": "system", "content": context}]
+        for msg in recent_messages:
+            role = "assistant" if msg.is_from_ai else "user"
+            messages_for_ai.append({"role": role, "content": msg.content})
+
+        messages_for_ai.append({"role": "user", "content": message.content})
+
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages_for_ai
+            )
+            ai_response = response.choices[0].message['content'].strip()
+
+            if "Xin vui lòng chờ quản trị viên phản hồi." in ai_response:
+                message.is_pending_admin = True
+                message.save()
+                conversation_state.is_admin_handling = True
+                conversation_state.save()
+                return
+
+            ai_message = Message.objects.create(
+                conversation_state=conversation_state,
+                sender=self.request.user,
+                content=ai_response,
+                is_from_ai=True
+            )
+
+            conversation_state.is_admin_handling = False
+            conversation_state.last_message_at = timezone.now()
+            conversation_state.save()
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{self.request.user.id}",
+                {
+                    "type": "chat_message",
+                    "message": serializers.MessageSerializer(ai_message).data
+                }
+            )
+            async_to_sync(channel_layer.group_send)(
+                'chat_admin',
+                {
+                    "type": "chat_message",
+                    "message": serializers.MessageSerializer(ai_message).data
+                }
+            )
+        except Exception as e:
+            message.is_pending_admin = True
+            message.save()
+            conversation_state.is_admin_handling = True
+            conversation_state.save()
+
+    @action(detail=False, methods=['get'], url_path='load-more')
+    def load_more(self, request):
+        user = request.user
+        conversation_state_id = request.query_params.get('conversation_state', None)
+        last_message_id = request.query_params.get('last_message_id', None)
+
+        if not conversation_state_id:
+            print("No conversation_state_id provided for load-more")
+            return Response({"messages": [], "status": "no_conversation"}, status=status.HTTP_200_OK)
+
+        try:
+            conversation_state = ConversationState.objects.get(id=conversation_state_id)
+            if user.is_admin or conversation_state.user == user:
+                if last_message_id:
+                    messages = Message.objects.filter(
+                        conversation_state=conversation_state,
+                        id__lt=last_message_id
+                    ).order_by('-created_at')[:20]
+                else:
+                    messages = Message.objects.filter(
+                        conversation_state=conversation_state
+                    ).order_by('-created_at')[:20]
+
+                print(f"Loaded {messages.count()} more messages for conversation {conversation_state_id}")
+                
+                if messages.count() == 0:
+                    return Response({"messages": [], "status": "no_more_messages"}, status=status.HTTP_200_OK)
+
+                return Response({
+                    "messages": serializers.MessageSerializer(messages, many=True).data,
+                    "status": "success"
+                }, status=status.HTTP_200_OK)
+            else:
+                print(f"User {user} not authorized for conversation {conversation_state_id}")
+                return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        except ConversationState.DoesNotExist:
+            print(f"Conversation {conversation_state_id} not found")
+            return Response({"messages": [], "status": "no_conversation"}, status=status.HTTP_200_OK)
+    
+class ConversationStateViewSet(viewsets.ModelViewSet):
+    serializer_class = serializers.ConversationStateSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrSelf]
+    authentication_classes = [OAuth2Authentication]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin:
+            return ConversationState.objects.all().order_by('-last_message_at')
+        return ConversationState.objects.filter(user=user)
+
+    @action(detail=True, methods=['post'], url_path='mark-as-done')
+    @csrf_exempt
+    def mark_as_done(self, request, pk=None):
+        conversation_state = self.get_object()
+        if not request.user.is_admin:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        conversation_state.is_admin_handling = False
+        conversation_state.save()
+        return Response({"status": "Conversation marked as done"}, status=status.HTTP_200_OK)
+
 # account
 # /api/user/change_password/
 @swagger_auto_schema(
@@ -929,47 +1131,4 @@ def payment_notify(request):
         service.handle_callback(request.data)
         return Response(status=status.HTTP_200_OK)
     except Exception as e:
-        return Response(status=status.HTTP_400_BAD_REQUEST)
-    
-# API cho admin lấy danh sách sinh viên có tin nhắn cần trả lời
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def pending_students(request):
-    # Lấy danh sách sinh viên có tin nhắn PENDING_ADMIN
-    pending_messages = Message.objects.filter(status='PENDING_ADMIN').select_related('sender')
-    students = {}
-    for message in pending_messages:
-        student = message.sender
-        if student.id not in students:
-            students[student.id] = {
-                'id': student.id,
-                'username': student.username,
-                'full_name': student.student.full_name if hasattr(student, 'student') else student.username,
-                'latest_message': message.content,
-                'timestamp': message.timestamp.isoformat()
-            }
-
-    return Response(list(students.values()))
-
-# API cho admin lấy lịch sử chat với một sinh viên
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def chat_history(request, student_id):
-    student = get_object_or_404(User, id=student_id)
-    messages = Message.objects.filter(
-        models.Q(sender=student, receiver__isnull=True) |  # Tin nhắn từ sinh viên
-        models.Q(sender=student, receiver=request.user) |  # Tin nhắn từ sinh viên gửi admin
-        models.Q(sender=request.user, receiver=student)    # Tin nhắn từ admin gửi sinh viên
-    ).order_by('timestamp')
-
-    message_data = [
-        {
-            'id': msg.id,
-            'content': msg.content,
-            'sender': msg.sender.username,
-            'is_from_admin': msg.is_from_admin,
-            'timestamp': msg.timestamp.isoformat()
-        } for msg in messages
-    ]
-    return Response(message_data)
-
+        return Response(status=status.HTTP_400_BAD_REQUEST)   

@@ -62,3 +62,4 @@ def send_otp_email(email, otp_code):
         html_message=html_message,
         fail_silently=False,
     )
+    

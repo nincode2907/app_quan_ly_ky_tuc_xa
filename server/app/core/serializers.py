@@ -232,3 +232,36 @@ class SurveySerializer(serializers.ModelSerializer):
         if data['end_date'] < timezone.now() and data.get('is_active', True):
             raise serializers.ValidationError({'is_active': 'Không thể kích hoạt khảo sát đã kết thúc.'})
         return data
+    
+class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+    conversation_state = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = models.Message
+        fields = ['id', 'sender', 'content', 'created_at', 'is_from_ai', 'is_pending_admin', "conversation_state"]
+
+    def get_sender(self, obj):
+        if obj.is_from_ai:
+            return {"id": None, "email": "AI Assistant", "is_admin": True}
+        return {"id": obj.sender.id, "email": obj.sender.email, "is_admin": obj.sender.is_admin, "full_name": obj.sender.students.full_name if hasattr(obj.sender, 'students') else None}
+    
+class ConversationStateSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.ConversationState
+        fields = ['id', 'user', 'is_admin_handling', 'last_message', 'last_message_at', 'updated_at']
+
+    def get_user(self, obj):
+        student = getattr(obj.user, 'students', None)
+        if student:
+            return {"id": obj.user.id, "email": obj.user.email, "full_name": student.full_name, "student_id": student.student_id}
+        return {"id": obj.user.id, "email": obj.user.email, "full_name": None, "student_id": None}
+
+    def get_last_message(self, obj):
+        last_message = obj.messages.first()
+        if last_message:
+            return MessageSerializer(last_message).data
+        return None

@@ -8,6 +8,7 @@ import { MyDispatchContext, MyUserContext } from './contexts/Contexts';
 import MyUserReducer from './reducers/MyUserReducer';
 import { LikedRoomsProvider } from "./contexts/LikedRoomsContext";
 import { SearchProvider } from './contexts/SearchContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 
 import Home from "./components/Home/Home";
 import Rooms from "./components/Rooms/Rooms";
@@ -345,9 +346,11 @@ const App = () => {
       <MyDispatchContext.Provider value={dispatch}>
         <LikedRoomsProvider>
           <SearchProvider>
-            <NavigationContainer>
-              <StackNavigator />
-            </NavigationContainer>
+            <WebSocketProvider>
+              <NavigationContainer>
+                <StackNavigator />
+              </NavigationContainer>
+            </WebSocketProvider>
           </SearchProvider>
         </LikedRoomsProvider>
       </MyDispatchContext.Provider>

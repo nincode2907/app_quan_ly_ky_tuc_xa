@@ -1,142 +1,182 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.db import database_sync_to_async
-from django.contrib.auth.models import User
-from .models import Message
 import json
+from django.contrib.auth import get_user_model
+from .models import Message, ConversationState, SystemContext
+from .serializers import MessageSerializer
+from asgiref.sync import sync_to_async
+from oauth2_provider.models import AccessToken
+from django.utils import timezone
+import logging
+import openai
 
+logger = logging.getLogger(__name__)
+User = get_user_model()
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope['user']
-        self.group_name = f'user_{self.user.id}'
-        
-        # Thêm user vào group
-        await self.channel_layer.group_add(
-            self.group_name,
-            self.channel_name
-        )
-        
-        # Kiểm tra nếu user là admin
-        self.is_admin = await self._is_admin()
-        if self.is_admin:
-            # Thêm admin vào group chung của admin
-            await self.channel_layer.group_add(
-                'admin_group',
-                self.channel_name
-            )
+        query_string = self.scope['query_string'].decode('utf-8')
+        token = None
+        for param in query_string.split('&'):
+            if param.startswith('token='):
+                token = param.split('=')[1]
+                break
 
-        await self.accept()
-        
-    async def disconnect(self, close_code):
-        # Rời group khi ngắt kết nối
-        await self.channel_layer.group_discard(
-            self.group_name,
-            self.channel_name
+        if not token:
+            logger.error("No token provided in WebSocket connection")
+            await self.close()
+            return
+
+        logger.info(f"Attempting to connect with token: {token}")
+        access_token = await sync_to_async(AccessToken.objects.select_related('user').get)(
+            token=token,
+            expires__gt=timezone.now()
         )
-        if self.is_admin:
-            await self.channel_layer.group_discard(
-                'admin_group',
-                self.channel_name
+
+        if not access_token:
+            logger.error(f"Invalid or expired token: {token}")
+            await self.close()
+            return
+
+        self.user = access_token.user
+        self.room_group_name = f"chat_{self.user.id}"
+
+        # Thêm người dùng vào nhóm tương ứng
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        if self.user.is_admin:
+            await self.channel_layer.group_add("chat_admin", self.channel_name)
+
+        logger.info(f"User {self.user.email} connected to room {self.room_group_name}")
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        if self.user and self.user.is_admin:
+            await self.channel_layer.group_discard("chat_admin", self.channel_name)
+        logger.info(f"User disconnected with code {close_code}")
+
+    async def receive(self, text_data):
+        if not self.user:
+            logger.warning("Unauthorized user tried to send message")
+            return
+
+        data = json.loads(text_data)
+        conversation_state_id = data.get('conversation_state_id')
+        content = data.get('content')
+
+        if not conversation_state_id or not content:
+            logger.error("Missing conversation_state_id or content in message")
+            return
+
+        try:
+            conversation_state = await sync_to_async(ConversationState.objects.select_related('user').get)(
+                id=conversation_state_id
             )
             
-    async def receive(self, text_data):
-        data = json.loads(text_data)
-        message_content = data['message']
+            sender = self.user
+            message = await sync_to_async(Message.objects.create)(
+                conversation_state=conversation_state,
+                sender=sender,
+                content=content,
+                is_from_ai=False
+            )
 
-        if not self.is_admin:
-            # Sinh viên gửi tin nhắn
-            # Lưu tin nhắn vào DB
-            message = await self._save_message(self.user, message_content)
+            conversation_state.last_message_at = message.created_at
+            await sync_to_async(conversation_state.save)()
 
-            # Thử để AI xử lý
-            ai_response = await self._process_with_ai(message_content)
-            if ai_response:
-                # AI trả lời được, gửi lại cho sinh viên
-                await self._save_message(None, ai_response, receiver=self.user, is_from_admin=False)
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {
-                        'type': 'chat_message',
-                        'message': ai_response,
-                        'sender': 'AI'
-                    }
-                )
-            else:
-                # AI không trả lời được, đánh dấu chờ admin và thông báo cho admin
-                await self._update_message_status(message, 'PENDING_ADMIN')
-                await self._notify_admins(message)
+            student_user_id = conversation_state.user.id
+            serialized_message = await sync_to_async(lambda: MessageSerializer(message).data)()
+
+            # Gửi tới nhóm sinh viên
+            await self.channel_layer.group_send(
+                f"chat_{student_user_id}",
+                {"type": "chat_message", "message": serialized_message}
+            )
+            # Gửi tới nhóm admin
+            await self.channel_layer.group_send(
+                "chat_admin",
+                {"type": "chat_message", "message": serialized_message}
+            )
+
+            if not self.user.is_admin:
+                await self.schedule_ai_response(conversation_state_id, student_user_id)
+
+        except Exception as e:
+            logger.error(f"Error sending message: {str(e)}")
+
+    async def schedule_ai_response(self, conversation_state_id, student_user_id):
+        # import asyncio
+        # await asyncio.sleep(120)  # Chờ 2 phút
+
+        conversation_state = await sync_to_async(ConversationState.objects.select_related('user').get)(
+            id=conversation_state_id
+        )
+        last_message = await sync_to_async(Message.objects.filter(
+            conversation_state=conversation_state
+        ).order_by('-created_at').first)()
+
+        if last_message and (timezone.now() - last_message.created_at).seconds >= 120:
+            await self.handle_ai_response(conversation_state, student_user_id)
+
+    async def handle_ai_response(self, conversation_state, student_user_id):
+        recent_messages = await sync_to_async(lambda: list(
+            Message.objects.filter(conversation_state=conversation_state).order_by('-created_at')[:10]
+        ))()
+
+        system_contexts = await sync_to_async(lambda: list(
+            SystemContext.objects.filter(is_active=True)
+        ))()
+
+        context = "Bạn là trợ lý AI của ký túc xá. Hãy trả lời lịch sự và chuyên nghiệp.\n"
+        if system_contexts:
+            context += "Đây là các ngữ cảnh, quy định, nội quy của ký túc xá:\n" + "\n".join(
+                [f"- {ctx.content}" for ctx in system_contexts]
+            ) + "\nNếu không tìm thấy thông tin, trả lời: 'Xin vui lòng chờ quản trị viên phản hồi.'"
         else:
-            # Admin gửi tin nhắn
-            student_id = data['student_id']
-            student = await self._get_user(student_id)
-            if student:
-                # Lưu tin nhắn từ admin
-                message = await self._save_message(self.user, message_content, receiver=student, is_from_admin=True)
-                await self._update_message_status(message, 'RESOLVED')
+            context += "Nếu không tìm thấy thông tin, trả lời: 'Xin vui lòng chờ quản trị viên phản hồi.'"
 
-                # Gửi tin nhắn tới sinh viên qua group của sinh viên
-                await self.channel_layer.group_send(
-                    f'user_{student_id}',
-                    {
-                        'type': 'chat_message',
-                        'message': message_content,
-                        'sender': self.user.email
-                    }
-                )
-                
-    async def chat_message(self, event):
-        # Gửi tin nhắn tới WebSocket client
-        await self.send(text_data=json.dumps({
-            'message': event['message'],
-            'sender': event['sender']
-        }))
-        
-    @database_sync_to_async
-    def _save_message(self, sender, content, receiver=None, is_from_admin=False):
-        return Message.objects.create(
-            sender=sender if sender else User.objects.get(username='system'),
-            receiver=receiver,
-            content=content,
-            is_from_admin=is_from_admin
-        )
-        
-    @database_sync_to_async
-    def _update_message_status(self, message, status):
-        message.status = status
-        message.save()
-        
-    @database_sync_to_async
-    def _get_user(self, user_id):
+        messages_for_ai = [{"role": "system", "content": context}]
+        for msg in recent_messages:
+            role = "assistant" if msg.is_from_ai else "user"
+            messages_for_ai.append({"role": role, "content": msg.content})
+
         try:
-            return User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return None
-        
-    @database_sync_to_async
-    def _is_admin(self):
-        return self.user.is_admin
-    
-    async def _process_with_ai(self, message_content):
-        # Mô phỏng AI xử lý (có thể tích hợp AI thực tế như Grok sau này)
-        if "hello" in message_content.lower():
-            return "Hi! How can I help you today?"
-        return None  # AI không trả lời được
-    
-    async def _notify_admins(self, message):
-        # Gửi thông báo tới tất cả admin đang online
-        await self.channel_layer.group_send(
-            'admin_group',
-            {
-                'type': 'admin_notification',
-                'message': f"New message from {message.sender.email}: {message.content}",
-                'student_id': message.sender.id
-            }
-        )
-        
-    async def admin_notification(self, event):
-        # Gửi thông báo tới admin qua WebSocket
-        await self.send(text_data=json.dumps({
-            'type': 'admin_notification',
-            'message': event['message'],
-            'student_id': event['student_id']
-        }))
+            response = await sync_to_async(openai.ChatCompletion.create)(
+                model="gpt-3.5-turbo",
+                messages=messages_for_ai
+            )
+            ai_response = response.choices[0].message['content'].strip()
+
+            ai_message = await sync_to_async(Message.objects.create)(
+                conversation_state=conversation_state,
+                sender=None,
+                content=ai_response,
+                is_from_ai=True
+            )
+
+            if "Xin vui lòng chờ quản trị viên phản hồi." in ai_response:
+                conversation_state.is_admin_handling = True
+                ai_message.is_pending_admin = True
+                await sync_to_async(ai_message.save)()
+            else:
+                conversation_state.is_admin_handling = False
+                conversation_state.last_message_at = ai_message.created_at
+            await sync_to_async(conversation_state.save)()
+
+            serialized_message = await sync_to_async(lambda: MessageSerializer(ai_message).data)()
+            await self.channel_layer.group_send(
+                f"chat_{student_user_id}",
+                {"type": "chat_message", "message": serialized_message}
+            )
+            await self.channel_layer.group_send(
+                "chat_admin",
+                {"type": "chat_message", "message": serialized_message}
+            )
+        except Exception as e:
+            logger.error(f"Error in AI response: {str(e)}")
+            conversation_state.is_admin_handling = True
+            await sync_to_async(conversation_state.save)()
+
+    async def chat_message(self, event):
+        message = event['message']
+        await self.send(text_data=json.dumps({'message': message}))

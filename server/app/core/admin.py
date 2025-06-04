@@ -8,7 +8,7 @@ from django.db import models
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .forms import CustomUserCreationForm, CustomUserChangeForm, SupportRequestAdminForm
 from django.db.models import Count, Sum
-from .models import SupportRequest, IssueReport, Survey, SurveyQuestion, SurveyResponse, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
+from .models import SupportRequest,Message,ConversationState,SystemContext, IssueReport, Survey, SurveyQuestion, SurveyResponse, User, Violation,RoomType, Room, Student, Contract, CheckInOutLog, QRCode, Faculty, Bill, Building, Area, RoomRequest, Notification, UserNotification, PaymentMethod, PaymentTransaction
 from .utils import generate_random_password
 from django.conf import settings
 from django.template.loader import render_to_string
@@ -27,6 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import pandas as pd
+from oauth2_provider.models import AccessToken, Application  # Thêm Application
 
 # Custom interface at admin page
 class KTXAdminSite(admin.AdminSite):
@@ -47,6 +48,7 @@ class KTXAdminSite(admin.AdminSite):
             path('student-list/', self.admin_view(self.student_list_view), name='student_list'),
             path('export-pdf/', self.admin_view(self.export_pdf), name='export_pdf'),
             path('export-excel/', self.admin_view(self.export_excel), name='export_excel'),
+            path('chat/', self.admin_view(self.chat_view), name='chat'),
         ]
         
         # admin_view(): Bắt buộc để kiểm tra quyền truy cập
@@ -415,6 +417,50 @@ class KTXAdminSite(admin.AdminSite):
         df.to_excel(response, index=False, engine='openpyxl')
         return response
         
+    def chat_view(self, request):
+        # Đảm bảo người dùng đã đăng nhập và là admin
+        if not request.user.is_authenticated or not request.user.is_admin:
+            return HttpResponse("Unauthorized", status=401)
+
+        # Tìm hoặc tạo access_token
+        try:
+            # Kiểm tra token hiện tại
+            access_token_obj = AccessToken.objects.filter(
+                user=request.user,
+                expires__gt=timezone.now()
+            ).order_by('-created').first()
+
+            if not access_token_obj:
+                # Nếu không có token hợp lệ, tạo token mới
+                # Đảm bảo có application cho OAuth2
+                app, created = Application.objects.get_or_create(
+                    name="Admin Chat Application",
+                    client_type=Application.CLIENT_CONFIDENTIAL,
+                    authorization_grant_type=Application.GRANT_CLIENT_CREDENTIALS,
+                    user=request.user
+                )
+
+                # Tạo access_token mới
+                access_token_obj = AccessToken.objects.create(
+                    user=request.user,
+                    application=app,
+                    expires=timezone.now() + timedelta(hours=1),  # Token hết hạn sau 1 giờ
+                    scope="read write"  # Điều chỉnh scope nếu cần
+                )
+
+            access_token = access_token_obj.token
+            print(f"Access Token for {request.user.email}: {access_token}")
+
+            # Truyền access_token vào template
+            return TemplateResponse(request, 'admin/chat.html', {
+                'access_token': access_token
+            })
+        except Exception as e:
+            return TemplateResponse(request, 'admin/chat.html', {
+                'access_token': None,
+                'error': f"Error retrieving or creating access token: {str(e)}"
+            })
+    
     def navigation_view(self, request):
         return TemplateResponse(request, index.templates['a_navigation'], {})
 
@@ -880,3 +926,21 @@ class SurveyResponseAdmin(admin.ModelAdmin):
     def student_name(self, obj):
         return f"{obj.student.full_name} ({obj.student.student_id})"
     student_name.short_description = 'Sinh viên'
+    
+@admin.register(Message, site=admin_site)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ['sender', 'content', 'created_at', 'is_from_ai', 'is_pending_admin']
+    list_filter = ['is_from_ai', 'is_pending_admin', 'created_at']
+    search_fields = ['sender__email', 'content']
+
+@admin.register(ConversationState, site=admin_site)
+class ConversationStateAdmin(admin.ModelAdmin):
+    list_display = ['user', 'is_admin_handling', 'last_message_at']
+    list_filter = ['is_admin_handling']
+    search_fields = ['user__email']
+
+@admin.register(SystemContext, site=admin_site)
+class SystemContextAdmin(admin.ModelAdmin):
+    list_display = ['title', 'is_active', 'updated_at']
+    list_filter = ['is_active']
+    search_fields = ['title', 'content']

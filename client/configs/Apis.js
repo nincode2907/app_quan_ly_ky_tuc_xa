@@ -29,6 +29,9 @@ export const endpoints = {
     'initiatePayment': '/api/payment/initiate-payment/',
     'supportRequest': '/api/support-requests/',
 
+    'conversations': '/api/conversations/',
+    'messages': '/api/messages/',
+
 };
 
 export const authApis = (token) => {
@@ -39,6 +42,7 @@ export const authApis = (token) => {
         }
     });
 };
+
 
 // export const refreshToken = async () => {
 //     try {

@@ -2,7 +2,6 @@ from django.urls import path, include
 from . import views
 from rest_framework.routers import DefaultRouter
 from .views import user_me, change_password
-from .consumers import ChatConsumer
 from django.urls import re_path
 
 router = DefaultRouter()
@@ -24,6 +23,8 @@ router.register(r'surveys', views.SurveyViewSet, basename='survey')
 router.register(r'survey-responses', views.SurveyResponseViewSet, basename='survey-response')
 router.register(r'survey-questions', views.SurveyQuestionViewSet, basename='survey-question')
 router.register(r'checkinout-logs', views.CheckInOutLogViewSet, basename='checkinout-log')
+router.register(r'messages', views.MessageViewSet, basename='message')
+router.register(r'conversations', views.ConversationStateViewSet, basename='conversation')
 
 urlpatterns = [
     path('user/me/', user_me, name='user_me'),
@@ -34,12 +35,5 @@ urlpatterns = [
     path('payment/initiate-payment/', views.initiate_payment, name='initiate_payment'),
     path('payment/payment_success/', views.payment_success, name='payment_success'),
     path("payment/payment_notify/", views.payment_notify, name="payment_notify"),
-    
-    # path('chat/pending-students/', views.pending_students, name='pending_students'),
-    # path('chat/history/<int:student_id>/', views.chat_history, name='chat_history'),
     path('', include(router.urls)),
 ]
-
-# websocket_urlpatterns = [
-#     re_path(r'ws/chat/$', ChatConsumer.as_asgi()),
-# ]

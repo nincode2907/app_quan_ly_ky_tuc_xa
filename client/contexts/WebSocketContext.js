@@ -16,7 +16,7 @@ export const WebSocketProvider = ({ children }) => {
             const accessToken = await AsyncStorage.getItem('token');
             console.log("[WebSocket] Token:", accessToken ? "Exists" : "Missing");
             if (!accessToken) return;
-            console.log("BASE_URL:", BASE_URL); // Thêm vào ngay trước khi tạo WebSocket
+            console.log("BASE_URL:", BASE_URL); 
             const protocol = BASE_URL.startsWith('https') ? 'wss' : 'ws';
             const host = BASE_URL.replace(/https?:\/\//, '');
             const wsUrl = `${protocol}://${host}/ws/chat/?token=${accessToken}`;

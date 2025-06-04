@@ -114,9 +114,9 @@ const Register = () => {
                             }
                             value={user[i.field]}
                             onChangeText={t => setState(t, i.field)}
-                            returnKeyType={i.returnKeyType} // Thiết lập kiểu nút “Enter”
+                            returnKeyType={i.returnKeyType}
                             onSubmitEditing={i.onSubmitEditing}
-                            ref={i.ref} // Tạo tham chiếu đến ô nhập
+                            ref={i.ref} 
                         />
                     ))}
 

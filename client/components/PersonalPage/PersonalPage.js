@@ -99,14 +99,6 @@ const ParsonalPage = () => {
                         <Text style={styles.sectionTitle}>Hỗ trợ</Text>
                     </View>
                     <View style={styles.sectionContent}>
-                        {/* <TouchableOpacity style={styles.item} onPress={() => nav.navigate("repairSupport")}>
-                            <Image
-                                source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889725/KTX-SV/fevb8j6xirnjokhs9pzf.png" }}
-                                style={styles.imgIcon}
-                            />
-                            <Text style={styles.itemText}>Yêu cầu sửa chữa</Text>
-                        </TouchableOpacity> */}
-
                         <TouchableOpacity style={styles.item} onPress={() => nav.navigate("reportSupport")}>
                             <Image
                                 source={{ uri: "https://res.cloudinary.com/dywyrpfw7/image/upload/v1745889742/KTX-SV/rwbff3sgja7fghxi833l.png" }}

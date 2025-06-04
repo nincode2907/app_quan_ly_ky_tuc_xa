@@ -23,7 +23,7 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Interceptor thêm token vào headers trước khi gửi request
+
 axiosInstance.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem("token");
@@ -35,18 +35,15 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor xử lý response lỗi (đặc biệt là lỗi 401)
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Nếu là lỗi 401 và chưa thử refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        // Nếu đang refresh, đợi cho đến khi refresh xong
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })

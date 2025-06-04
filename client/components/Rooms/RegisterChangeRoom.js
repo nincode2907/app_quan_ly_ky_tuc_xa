@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, TextInput, Alert, Text, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, TouchableOpacity, } from 'react-native';
-import { authApis, endpoints } from '../../configs/Apis';
+import { TextInput, Alert, Text, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform, StyleSheet, TouchableOpacity, } from 'react-native';
+import { endpoints } from '../../configs/Apis';
 import axiosInstance from "../../configs/AxiosInterceptor";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const RoomRegister = ({ route, navigation }) => {
     const { roomId, roomNumber, buildingName } = route.params;
@@ -35,7 +35,6 @@ const RoomRegister = ({ route, navigation }) => {
             Alert.alert('Thành công', res.data.message || 'Đã gửi yêu cầu.');
             navigation.navigate('roomStatus');
         } catch (err) {
-            // console.error('Lỗi API:', err.response?.data || err.message || err);
             Alert.alert('Lỗi', err.response?.data?.error || 'Gửi yêu cầu thất bại.');
         } finally {
             setLoading(false);

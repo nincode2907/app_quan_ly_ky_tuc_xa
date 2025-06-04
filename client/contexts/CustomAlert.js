@@ -1,4 +1,3 @@
-// Chỉnh nâng cao thay cho Alert
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 

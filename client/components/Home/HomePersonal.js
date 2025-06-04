@@ -23,7 +23,6 @@ const HomePersonal = () => {
         try {
             const res = await axiosInstance.get(endpoints['studentInfo']);
             const student = res.data;
-            // console.log("StudentInfo:", res.data);
 
             setUserInfo({
                 name: student.full_name,
@@ -76,7 +75,7 @@ const HomePersonal = () => {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await getStudentInfo();  // Gọi lại hàm lấy dữ liệu
+        await getStudentInfo();  
         setRefreshing(false);
     };
 

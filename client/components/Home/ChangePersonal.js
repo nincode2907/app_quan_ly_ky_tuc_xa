@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { endpoints, authApis } from "../../configs/Apis";
+import { endpoints } from "../../configs/Apis";
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from "../../configs/AxiosInterceptor";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
@@ -33,8 +32,8 @@ const ChangePersonal = ({ route, navigation }) => {
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.1, // giảm chất lượng
-                base64: true, // thêm dòng này để lấy base64 trực tiếp
+                quality: 0.1, 
+                base64: true, 
             });
 
             if (!result.canceled) {
@@ -53,12 +52,6 @@ const ChangePersonal = ({ route, navigation }) => {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            // const token = await AsyncStorage.getItem('token'); 
-            // if (!token) {
-            //     alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
-            //     setLoading(false);
-            //     return;
-            // }
 
             const formData = new FormData();
             formData.append("phone", newPhone);

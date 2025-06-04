@@ -166,7 +166,6 @@ const HomeChat = () => {
                     return;
                 }
 
-                // Kiểm tra duplicate dựa trên nội dung và thời gian
                 const isDuplicate = messagesRef.current.some(msg => 
                     msg.content === data.message.content && 
                     Math.abs(new Date(msg.time).getTime() - new Date(data.message.created_at).getTime()) < 1000
@@ -191,7 +190,7 @@ const HomeChat = () => {
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
         }
-    }, []); // Không có dependency để tránh tạo lại hàm
+    }, []);
 
     const MessageBubble = React.memo(({ item }) => (
         <View
@@ -210,18 +209,16 @@ const HomeChat = () => {
     useEffect(() => {
         loadInitialData();
 
-        // Lắng nghe tin nhắn mới từ WebSocket
         if (wsRef.current) {
             wsRef.current.onmessage = handleWebSocketMessage;
         }
 
         return () => {
-            // Dọn dẹp event listener
             if (wsRef.current) {
                 wsRef.current.onmessage = null;
             }
         };
-    }, []); // Chỉ chạy một lần khi mount
+    }, []); 
 
     return (
         <KeyboardAvoidingView

@@ -19,7 +19,6 @@ const HomeNotification = () => {
         try {
             const res = await axiosInstance.get(`${endpoints.notifications}${notificationId}/`);
             const data = res.data.notification;
-            // console.log("Response data:", res.data);
 
             setNotification({
                 icon: data.notification_type,

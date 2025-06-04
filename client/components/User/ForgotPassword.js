@@ -14,31 +14,26 @@ import { API_KEY } from '@env';
 const OTP_TIMEOUT = 60;
 
 const ForgotPassword = () => {
-    // State quản lý email và lỗi
     const [email, setEmail] = useState('');
     const [emailError, setEmailError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // State modal OTP
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [otp, setOtp] = useState('');
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
 
-    // Timer đếm ngược cho OTP
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
 
     const navigation = useNavigation();
 
-    // Dọn timer khi unmount component
     useEffect(() => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
 
-    // Hàm khởi động timer đếm ngược
     const startTimer = () => {
         if (timerRef.current) clearInterval(timerRef.current);
         setTimer(OTP_TIMEOUT);
@@ -53,14 +48,12 @@ const ForgotPassword = () => {
         }, 1000);
     };
 
-    // Hàm kiểm tra email hợp lệ và là gmail
     const isValidEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const gmailRegex = /^[^\s@]+@gmail\.com$/i;
         return emailRegex.test(email) && gmailRegex.test(email);
     };
 
-    // Gửi yêu cầu lấy OTP
     const requestOtp = async () => {
         const trimmedEmail = email.trim();
 
@@ -83,7 +76,6 @@ const ForgotPassword = () => {
                 headers: { 'x-api-key': API_KEY }
             });
 
-            // Hiển thị modal nhập OTP và bắt đầu timer
             setIsModalVisible(true);
             startTimer();
             Alert.alert('Thành công', 'Mã OTP đã được gửi đến email của bạn.');
@@ -103,7 +95,6 @@ const ForgotPassword = () => {
         }
     };
 
-    // Xác thực OTP
     const verifyOtp = async () => {
         if (!otp) {
             setOtpMsg('Vui lòng nhập mã OTP');
@@ -172,7 +163,6 @@ const ForgotPassword = () => {
                     </Text>
                 </TouchableOpacity>
 
-                {/* Modal nhập OTP */}
                 <Modal isVisible={isModalVisible} onBackdropPress={() => !otpLoading && setIsModalVisible(false)}>
                     <View style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>Nhập mã OTP</Text>

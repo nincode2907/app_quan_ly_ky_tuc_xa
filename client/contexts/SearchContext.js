@@ -6,7 +6,6 @@ export const SearchProvider = ({ children }) => {
     const [searchText, setSearchText] = useState('');
     const [page, setPage] = useState(1);
 
-    // Cập nhật lại khi rời khỏi Rooms
     const resetSearch = () => {
         setSearchText('');
         setPage(1);

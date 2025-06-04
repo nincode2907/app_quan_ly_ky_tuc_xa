@@ -38,7 +38,6 @@ const ChangePassword = () => {
     const [timer, setTimer] = useState(OTP_TIMEOUT);
     const timerRef = useRef(null);
 
-    // Lấy thông tin user và set isFirstLogin
     useEffect(() => {
         const fetchUserInfo = async () => {
             try {
@@ -87,7 +86,6 @@ const ChangePassword = () => {
         return true;
     };
 
-    // Hàm lấy email từ user_me (để gửi OTP)
     const getEmailFromUserInfo = async (token) => {
         try {
             const res = await axiosInstance.get(endpoints.user_me);
@@ -153,7 +151,6 @@ const ChangePassword = () => {
                 headers: { 'x-api-key': API_KEY }
             });
 
-            // Gửi dữ liệu đổi mật khẩu theo isFirstLogin
             const payload = isFirstLogin
                 ? { new_password: newPassword }
                 : { old_password: oldPassword, new_password: newPassword };

@@ -49,8 +49,7 @@ const ExtensionsPayBillsDetails = () => {
             const response = await authApis(storedToken).get(endpoints.paymentMethods, {
                 timeout: 10000,
             });
-            // console.log("Payment methods response:", response.data);
-            const momoMethod = response.data.results.find((method) => method.name === "MoMo");
+           
             if (momoMethod) {
                 setPaymentMethodId(momoMethod.id);
                 setLinkPayMeImg(momoMethod.image);
@@ -67,7 +66,6 @@ const ExtensionsPayBillsDetails = () => {
 
     useFocusEffect(
         useCallback(() => {
-            // console.log("useFocusEffect billId:", billId);
             setLoading(true);
             fetchTokenAndPaymentMethods().then((success) => {
                 if (success) {
@@ -96,7 +94,7 @@ const ExtensionsPayBillsDetails = () => {
                                 Alert.alert("Thành công", "Thanh toán hóa đơn thành công!", [
                                     { text: "OK", onPress: () => nav.goBack() },
                                 ]);
-                                fetchBillDetails(); // Cập nhật lại thông tin hóa đơn
+                                fetchBillDetails(); 
                             } else {
                                 Alert.alert("Thất bại", "Thanh toán không thành công. Vui lòng thử lại.");
                             }
@@ -219,10 +217,10 @@ const ExtensionsPayBillsDetails = () => {
                     </View>
 
                     {bill.description
-                        .split('\n')                      // Tách từng dòng
-                        .slice(1)                         // Bỏ dòng đầu tiên (ví dụ: "Hóa đơn tháng 5/2025")
+                        .split('\n')                      
+                        .slice(1)   
                         .map((item, index) => {
-                            const parts = item.split(':'); // Tách tên khoản và số tiền
+                            const parts = item.split(':'); 
                             const title = parts[0].replace('- ', '').trim();
                             const value = parts[1]?.trim().replace(' VNĐ', '') || '0';
                             return (

@@ -4,7 +4,6 @@ import { View, TextInput, StyleSheet } from 'react-native';
 const OTPInput = ({ value, onChange }) => {
   const inputs = useRef([]);
 
-  // Khi value thay đổi (ví dụ set từ ngoài) thì đồng bộ mảng
   useEffect(() => {
     if (value.length < 6) {
       onChange(value.padEnd(6, ''));
@@ -17,7 +16,6 @@ const OTPInput = ({ value, onChange }) => {
       newOtp[index] = text;
       onChange(newOtp.join(''));
 
-      // Focus ô kế tiếp nếu có
       if (index < 5) {
         inputs.current[index + 1].focus();
       }

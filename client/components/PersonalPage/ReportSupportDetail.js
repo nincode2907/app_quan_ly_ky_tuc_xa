@@ -29,7 +29,6 @@ const ReportSupportDetail = () => {
         try {
             const res = await axiosInstance.get(endpoints['studentInfo']);
             const student = res.data;
-            // console.log("StudentInfo:", res.data);
 
             const info = {
                 name: student.full_name,

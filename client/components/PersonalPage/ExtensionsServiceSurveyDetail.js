@@ -33,7 +33,6 @@ const ExtensionsServiceSurveyDetail = () => {
                 const res = await axiosInstance.get(`${endpoints.surveys}${surveyId}/`);
                 setSurvey(res.data);
 
-                // Nếu backend trả về flag completed
                 if (res.data.completed === true) {
                     setCompleted(true);
                 }

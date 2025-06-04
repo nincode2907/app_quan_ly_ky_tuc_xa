@@ -8,14 +8,13 @@ import StylePersonal from './StyleChangePersonal';
 
 const ChangePersonal = ({ route, navigation }) => {
     const {
-        phone = '', address = '', gender = '', birthday = '',
-        avatar = '', name = '', email = ''
+        phone = '', address = '', birthday = '',
+        avatar = '', name = '',
     } = route.params || {};
 
     const [newName, setNewName] = useState(name);
     const [newPhone, setNewPhone] = useState(phone);
     const [newAddress, setNewAddress] = useState(address);
-    const [newGender, setNewGender] = useState(gender);
     const [newBirthday, setNewBirthday] = useState(birthday);
     const [newAvatar, setNewAvatar] = useState(avatar);
     const [newAvatarBase64, setNewAvatarBase64] = useState(null);
@@ -54,14 +53,13 @@ const ChangePersonal = ({ route, navigation }) => {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            const token = await AsyncStorage.getItem('token'); // lấy token ở đây
-            if (!token) {
-                alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
-                setLoading(false);
-                return;
-            }
+            // const token = await AsyncStorage.getItem('token'); 
+            // if (!token) {
+            //     alert('Bạn chưa đăng nhập hoặc token không hợp lệ');
+            //     setLoading(false);
+            //     return;
+            // }
 
-            // tạo formData như trước
             const formData = new FormData();
             formData.append("phone", newPhone);
             formData.append("home_town", newAddress);
@@ -72,15 +70,25 @@ const ChangePersonal = ({ route, navigation }) => {
                 const filename = newAvatar.split('/').pop();
                 const match = /\.(\w+)$/.exec(filename);
                 const type = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
-                const fileUri = newAvatar.startsWith('file://') ? newAvatar : `file://${newAvatar}`;
+                const fileUri = newAvatar.startsWith('file://') ? newAvatar : newAvatar;
+
+                console.log('>> Avatar being sent:', {
+                    uri: fileUri,
+                    name: filename,
+                    type: type
+                });
+
                 formData.append("avatar", {
                     uri: fileUri,
                     name: filename,
                     type: type,
                 });
+                for (let pair of formData.entries()) {
+                    console.log(`${pair[0]}:`, pair[1]);
+                }
             }
 
-            const res = await authApis(token).post(endpoints["updateProfile"], formData, {
+            const res = await axiosInstance.post(endpoints["updateProfile"], formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
